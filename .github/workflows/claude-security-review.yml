@@ -6,10 +6,12 @@ on:
   pull_request:
     types: [opened, synchronize]
 
-# 既定の read-only を踏襲しつつ、PR へのコメント投稿だけ許可する。
+# 既定の read-only を踏襲しつつ、PR へのコメント投稿を許可する。
+# id-token: write は claude-code-action が OIDC トークン交換に使うため必須。
 permissions:
   contents: read
   pull-requests: write
+  id-token: write
 
 jobs:
   security-review:
