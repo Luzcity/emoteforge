@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = ["core"]
+# src-tauri は Linux 開発機では webkit 依存でビルド不可のためワークスペースから除外。
+# core への path 依存の独立 crate として Win11 でビルドする。
+exclude = ["src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
