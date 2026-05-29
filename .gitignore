@@ -7,3 +7,5 @@ target/
 src-tauri/target/
 node_modules/
 dist/
+catalog/animDictsCompact.json
+catalog/dump_index.json
