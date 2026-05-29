@@ -36,9 +36,19 @@ export default function ClipList({ clips, onChange }: Props) {
               value={c.clip}
               onChange={(e) => update(i, { clip: e.target.value })}
             />
-            <button aria-label={`clip-${i}-up`} onClick={() => move(i, -1)} className="px-1">↑</button>
-            <button aria-label={`clip-${i}-down`} onClick={() => move(i, 1)} className="px-1">↓</button>
-            <button aria-label={`clip-${i}-remove`} onClick={() => remove(i)} className="px-1 text-red-400">✕</button>
+            <button aria-label={`clip-${i}-up`} onClick={() => move(i, -1)} className="px-1">
+              ↑
+            </button>
+            <button aria-label={`clip-${i}-down`} onClick={() => move(i, 1)} className="px-1">
+              ↓
+            </button>
+            <button
+              aria-label={`clip-${i}-remove`}
+              onClick={() => remove(i)}
+              className="px-1 text-red-400"
+            >
+              ✕
+            </button>
           </div>
           <div className="flex gap-3 mt-1 text-xs text-gray-400">
             <label className="flex items-center gap-1">

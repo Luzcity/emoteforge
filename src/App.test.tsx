@@ -80,6 +80,77 @@ describe("App", () => {
     expect(await screen.findByText(/unknown animation/)).toBeInTheDocument();
   });
 
+  it("clears validation issues when switching emotes", async () => {
+    (api.generateEmote as any)
+      .mockResolvedValueOnce({ spec: { ...sampleSpec, name: "a", displayName: "AAA" }, issues: [] })
+      .mockResolvedValueOnce({
+        spec: { ...sampleSpec, name: "b", displayName: "BBB" },
+        issues: [],
+      });
+    (api.validateEmote as any).mockResolvedValue({
+      spec: sampleSpec,
+      issues: [{ field: "clips[0].clip", message: "unknown animation", suggestions: [] }],
+    });
+
+    render(<App />);
+    const promptInput = screen.getByLabelText("prompt");
+    // emote A
+    fireEvent.change(promptInput, { target: { value: "a" } });
+    fireEvent.click(screen.getByText("生成"));
+    await screen.findByDisplayValue("AAA");
+    // emote B
+    fireEvent.change(promptInput, { target: { value: "b" } });
+    fireEvent.click(screen.getByText("生成"));
+    await screen.findByDisplayValue("BBB");
+
+    // B を編集して issues を出す
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "renamed" } });
+    expect(await screen.findByText(/unknown animation/)).toBeInTheDocument();
+
+    // A に切り替えると B の issues は消える
+    fireEvent.click(screen.getAllByTestId("library-item")[0]);
+    await waitFor(() => expect(screen.queryByText(/unknown animation/)).not.toBeInTheDocument());
+  });
+
+  it("clears stale issues when creating a new empty emote", async () => {
+    (api.generateEmote as any).mockResolvedValue({ spec: sampleSpec, issues: [] });
+    (api.validateEmote as any).mockResolvedValue({
+      spec: sampleSpec,
+      issues: [{ field: "clips[0].clip", message: "unknown animation", suggestions: [] }],
+    });
+
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("prompt"), { target: { value: "x" } });
+    fireEvent.click(screen.getByText("生成"));
+    await screen.findByDisplayValue("乾杯");
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "renamed" } });
+    expect(await screen.findByText(/unknown animation/)).toBeInTheDocument();
+
+    // 空のエモートを新規作成すると前の issues は消える
+    fireEvent.click(screen.getByText("＋ 空のエモート"));
+    await waitFor(() => expect(screen.queryByText(/unknown animation/)).not.toBeInTheDocument());
+  });
+
+  it("does not overwrite the name field with the normalized value while typing", async () => {
+    (api.generateEmote as any).mockResolvedValue({ spec: sampleSpec, issues: [] });
+    // 検証は正規化済み name を返すが、編集中に書き戻してはならない。
+    (api.validateEmote as any).mockResolvedValue({
+      spec: { ...sampleSpec, name: "wavehello" },
+      issues: [],
+    });
+
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("prompt"), { target: { value: "x" } });
+    fireEvent.click(screen.getByText("生成"));
+    await screen.findByDisplayValue("乾杯");
+
+    const nameInput = screen.getByLabelText("name") as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: "wave hello" } });
+    await waitFor(() => expect(api.validateEmote).toHaveBeenCalled());
+    // 正規化された "wavehello" ではなく、ユーザーが打った値が残る。
+    expect(nameInput.value).toBe("wave hello");
+  });
+
   it("previews the active emote in-game", async () => {
     (api.generateEmote as any).mockResolvedValue({ spec: sampleSpec, issues: [] });
     (api.previewEmote as any).mockResolvedValue(undefined);

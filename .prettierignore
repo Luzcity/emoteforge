@@ -1,0 +1,6 @@
+dist
+node_modules
+target
+catalog/catalog.json
+catalog/dump_index.json
+package-lock.json

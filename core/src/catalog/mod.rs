@@ -67,7 +67,9 @@ impl Catalog {
         if let Some(idx) = &self.dump_index {
             return idx.get(dict).is_some_and(|clips| clips.contains(clip));
         }
-        self.entries.iter().any(|e| e.dict == dict && e.clip == clip)
+        self.entries
+            .iter()
+            .any(|e| e.dict == dict && e.clip == clip)
     }
 
     /// 指定 dict に存在するクリップ候補（dump_index 優先）。補修候補の提示に使う。
@@ -180,7 +182,11 @@ mod tests {
     #[test]
     fn loads_nonempty_catalog() {
         let c = load();
-        assert!(c.len() > 100, "expected a substantial catalog, got {}", c.len());
+        assert!(
+            c.len() > 100,
+            "expected a substantial catalog, got {}",
+            c.len()
+        );
     }
 
     #[test]
@@ -196,8 +202,10 @@ mod tests {
         let c = load();
         let hits = c.search("coffee", 10);
         assert!(!hits.is_empty(), "coffee should match ambient entries");
-        assert!(hits.iter().all(|e| e.tags.iter().any(|t| t.contains("coffee"))
-            || e.display_name.to_lowercase().contains("coffee")));
+        assert!(hits
+            .iter()
+            .all(|e| e.tags.iter().any(|t| t.contains("coffee"))
+                || e.display_name.to_lowercase().contains("coffee")));
     }
 
     #[test]

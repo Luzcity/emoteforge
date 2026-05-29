@@ -179,7 +179,10 @@ mod tests {
         let report = validate(&spec, &cat).unwrap_err();
         assert!(report.issues.iter().any(|i| i.field.contains("clip")));
         let issue = &report.issues[0];
-        assert!(!issue.suggestions.is_empty(), "should suggest real clips for the dict");
+        assert!(
+            !issue.suggestions.is_empty(),
+            "should suggest real clips for the dict"
+        );
     }
 
     #[test]

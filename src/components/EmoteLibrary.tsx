@@ -10,7 +10,9 @@ interface Props {
 export default function EmoteLibrary({ emotes, activeIndex, onSelect, onDelete }: Props) {
   return (
     <div className="space-y-1">
-      <h2 className="text-xs uppercase tracking-wide text-gray-500 mb-2">エモート一覧 ({emotes.length})</h2>
+      <h2 className="text-xs uppercase tracking-wide text-gray-500 mb-2">
+        エモート一覧 ({emotes.length})
+      </h2>
       {emotes.map((e, i) => (
         <div
           key={i}
