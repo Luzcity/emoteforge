@@ -28,10 +28,20 @@
 - **入力検証**: codex 出力は JSON Schema 強制＋カタログ実在検証（ハルシネーション排除）。
   数値は範囲クランプ、名前はサニタイズ。
 
-### 適用したハードニング
+### 適用したハードニング / 修正
 - **CSP を有効化**（従来 `null`）: `default-src 'self'` 系の制限的ポリシーを `tauri.conf.json` に設定。
 - **Tauri capabilities** を最小化（`core:default` + `dialog:default` のみ）。アプリコマンドは
   `main` ウィンドウからのみ到達可能（リモート到達不可）。
+- **バンドルリソースパスのバグ修正**: `tauri.conf.json` は `../catalog/...` を列挙し、Tauri v2 は
+  バンドル時に `../` を `_up_/` へ再マップする（`$RESOURCE/_up_/catalog/catalog.json`）。当初の
+  `state.rs` は `catalog/catalog.json` を解決しており、**バンドル版 Win11 で `AppState::load` が
+  失敗し起動不能**になる潜在バグだった（dev フォールバックが開発時に隠蔽）。`_up_/` 候補・
+  `resource_dir` 直下・dev フォールバックを順に試すよう修正。
+
+### 実起動スモーク（dev）
+- `xvfb-run ./target/debug/emoteforge` で 12 秒間クラッシュせず稼働を確認。`AppState::load`
+  成功（catalog/dump_index/schema ロード）・ウィンドウ生成・イベントループ稼働。
+  ※これは dev パスでの起動確認。バンドル版 `_up_/` パスは実 Win11 ビルドでの確認が必要。
 
 ### 既知の留意点（リスク受容 + 文書化）
 - **Preview Bridge は開発専用**: `emoteforge_bridge` の HTTP ハンドラは未認証で `POST /preview`
