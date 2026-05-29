@@ -5,3 +5,5 @@ target/
 *.log
 .env
 src-tauri/target/
+node_modules/
+dist/
