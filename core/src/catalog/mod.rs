@@ -35,6 +35,15 @@ impl Catalog {
         })
     }
 
+    /// コンパイル時埋め込みバイト列から curated catalog を読み込む。
+    pub fn load_bytes(bytes: &[u8]) -> Result<Self, CatalogError> {
+        let file: CatalogFile = serde_json::from_slice(bytes)?;
+        Ok(Catalog {
+            entries: file.entries,
+            dump_index: None,
+        })
+    }
+
     /// 任意で dump_index.json（{dict:[clips]}）を読み込み、存在検証を厳密化する。
     pub fn with_dump_index(mut self, index_path: &Path) -> Result<Self, CatalogError> {
         if !index_path.exists() {
@@ -42,6 +51,21 @@ impl Catalog {
         }
         let text = std::fs::read_to_string(index_path)?;
         let raw: HashMap<String, Vec<String>> = serde_json::from_str(&text)?;
+        let map = raw
+            .into_iter()
+            .map(|(k, v)| (k, v.into_iter().collect::<HashSet<_>>()))
+            .collect();
+        self.dump_index = Some(map);
+        Ok(self)
+    }
+
+    /// コンパイル時埋め込みバイト列から dump_index を読み込む。
+    /// 空の JSON オブジェクト（`{}`）の場合は dump_index なしのまま返す。
+    pub fn with_dump_index_bytes(mut self, bytes: &[u8]) -> Result<Self, CatalogError> {
+        let raw: HashMap<String, Vec<String>> = serde_json::from_slice(bytes)?;
+        if raw.is_empty() {
+            return Ok(self);
+        }
         let map = raw
             .into_iter()
             .map(|(k, v)| (k, v.into_iter().collect::<HashSet<_>>()))
@@ -226,5 +250,34 @@ mod tests {
         // dump にある既知の組
         assert!(c.contains("amb@world_human_cheering@male_a", "base"));
         assert!(!c.contains("amb@world_human_cheering@male_a", "no_such_clip"));
+    }
+
+    #[test]
+    fn load_bytes_reads_embedded_catalog() {
+        let bytes = std::fs::read(catalog_path()).unwrap();
+        let c = Catalog::load_bytes(&bytes).expect("load_bytes should succeed");
+        assert!(c.len() > 100, "expected substantial catalog, got {}", c.len());
+    }
+
+    #[test]
+    fn with_dump_index_bytes_empty_object_leaves_no_index() {
+        let c = load()
+            .with_dump_index_bytes(b"{}")
+            .expect("with_dump_index_bytes({}) should succeed");
+        assert!(!c.has_dump_index(), "{{}} should not set dump_index");
+    }
+
+    #[test]
+    fn with_dump_index_bytes_real_data_sets_index() {
+        let idx_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../catalog/dump_index.json");
+        if !idx_path.exists() {
+            return; // 生成物が無い環境ではスキップ
+        }
+        let bytes = std::fs::read(&idx_path).unwrap();
+        let c = load()
+            .with_dump_index_bytes(&bytes)
+            .expect("with_dump_index_bytes should succeed");
+        assert!(c.has_dump_index());
+        assert!(c.contains("amb@world_human_cheering@male_a", "base"));
     }
 }
