@@ -55,6 +55,28 @@
 - `.ycd` バイナリ生成・FiveM 実ロードは CodeWalker/Blender(Sollumz)/GPU を要し未検証。
   該当コードは best-effort として明記済み（`phase2/README.md`、各モジュール冒頭コメント）。
 
+## Codex レスバ・レビュー（3 ラウンド）で判明・修正した点
+
+実コードを Codex(`codex exec`)に読ませ、反論しながら 3 ラウンド議論して洗い出した。
+
+修正済み:
+- **検証ゲートの一元化**: `export_emotes` / `preview_emote` の両方で全 emote を `validate()`
+  してから処理（無効なら中止）。編集時も正規化を UI へ書き戻し。
+- **anim flag の修正**: 誤った `51` 既定を撤廃し、`loop=1 / walkable upper=49(16|32) / one-shot=0`
+  の正準値に。`AF_TAG_SYNC_OUT` を `64`→`32768` に訂正（`64=REORIENT`）。
+- **facial を `PlayFacialAnim`** に変更（body skeleton の secondary slot 誤用を是正）。さらに
+  `validate()` で facial dict/clip の実在も検証（不在時の沈黙失敗を防止）。
+- **日本語プロンプト対策**: 検索が薄い時のみ下限(16 件)までカテゴリ横断サンプルで候補底上げ
+  （常時 40 件まで埋めてノイズ化させない）。
+- **UI の致命的欠落を解消**: カタログ検索・クリップ追加・prop/表情編集 UI を追加
+  （従来は空 emote にクリップを足せなかった）。
+
+判断を保留/撤回した点:
+- **ycd の移動(translation)チャンネル**: 一旦追加したが、CodeWalker のトラック別チャンネル
+  仕様を検証できないまま足すとファイル全体が読めなくなる恐れがある（ドメイン批評）。
+  rotations-only に戻し、移動データは MotionClip に保持。実サンプルで仕様確定後に追加する。
+
 ## 結論
 出荷対象（コアロジック + Tauri アプリ）に未修正の CRITICAL/High なし。CSP 有効化を適用。
-dev 限定の留意点は文書化済み。
+Codex レビューで判明した実バグ（検証ゲート抜け・flag 誤り・facial 誤用・候補ノイズ）は修正済み。
+Phase 2 の `.ycd` 互換性と prop プリセット拡充は外部ツール検証待ちの既知課題。
