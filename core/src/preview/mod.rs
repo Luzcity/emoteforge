@@ -156,4 +156,22 @@ mod tests {
         assert!(dir.join("server.lua").exists());
         assert!(dir.join("client.lua").exists());
     }
+
+    /// 同梱の `fivem/emoteforge_bridge/`（README が手動コピーを案内する正規の配置物）が
+    /// Lua テンプレートと一致することを保証する。ずれると `install_bridge` 経由と
+    /// 手動コピーで挙動が分岐し、修正済みのはずの anim flag / facial バグが手動側に
+    /// 復活する。ずれたら `cargo run --example sync_bridge` で再生成する。
+    #[test]
+    fn bundled_bridge_matches_templates() {
+        use crate::export::lua_templates::{bridge_client_lua, BRIDGE_FXMANIFEST, BRIDGE_SERVER_LUA};
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../fivem/emoteforge_bridge");
+        let read = |name: &str| std::fs::read_to_string(dir.join(name)).unwrap_or_default();
+        assert_eq!(
+            read("client.lua"),
+            bridge_client_lua(),
+            "fivem/emoteforge_bridge/client.lua がテンプレートとずれています。`cargo run --example sync_bridge` で再生成してください"
+        );
+        assert_eq!(read("server.lua"), BRIDGE_SERVER_LUA, "server.lua がずれています");
+        assert_eq!(read("fxmanifest.lua"), BRIDGE_FXMANIFEST, "fxmanifest.lua がずれています");
+    }
 }

@@ -31,6 +31,14 @@ export interface ResourceManifest {
   emoteCount: number;
 }
 
+export interface YcdBuildResult {
+  outPath: string;
+  frameCount: number;
+  boneCount: number;
+  /** GTA ボーンへ対応付けできなかった元ボーン名（情報提示用）。 */
+  unmapped: string[];
+}
+
 export const generateEmote = (prompt: string) =>
   invoke<GeneratedEmote>("generate_emote", { prompt });
 
@@ -56,3 +64,21 @@ export const exportEmotes = (specs: EmoteSpec[], outDir: string, resourceName: s
 
 export const installBridgeResource = (resourcesDir: string) =>
   invoke<string>("install_bridge_resource", { resourcesDir });
+
+// ---- Phase 2/3: .ycd パイプライン ----
+
+export const importBvhYcdXml = (bvhPath: string, outPath: string) =>
+  invoke<YcdBuildResult>("import_bvh_ycd_xml", { bvhPath, outPath });
+
+export const generateAiMotionYcdXml = (
+  prompt: string,
+  runnerBin: string,
+  runnerArgs: string[],
+  outPath: string
+) =>
+  invoke<YcdBuildResult>("generate_ai_motion_ycd_xml", {
+    prompt,
+    runnerBin,
+    runnerArgs,
+    outPath,
+  });
