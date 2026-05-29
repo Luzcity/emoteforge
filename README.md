@@ -11,9 +11,14 @@
 
 | Phase | 内容 | 状態 |
 |---|---|---|
-| 1 | Codex 振付（既存クリップを Lua レベルで合成、`.ycd` 不要） | 実装済み |
-| 2 | 外部モーション取込 → GTA リターゲット → `.ycd` 生成 | 実装済み（外部ツール手順あり） |
-| 3 | AI text-to-motion 生成 → `.ycd` パイプラインへ | 実装済み（バックエンド差替式） |
+| 1 | Codex 振付（既存クリップを Lua レベルで合成、`.ycd` 不要） | **実装済み・検証済み**（実 codex E2E / cargo / luac / Vitest） |
+| 2 | 外部モーション取込 → GTA リターゲット → `.ycd` 生成 | 未実装（これから） |
+| 3 | AI text-to-motion 生成 → `.ycd` パイプラインへ | 未実装（これから） |
+
+> **検証境界について**: Phase 1 は実 codex 連携・生成 Lua の構文・src-tauri コンパイル・UI まで
+> 実機検証済み。Phase 2/3 は `.ycd` バイナリ生成に Blender(Sollumz)/CodeWalker(.NET, Windows)/GPU を
+> 要し、本リポジトリの Linux 開発環境では**最終段（実 `.ycd` 書き出し・FiveM 実ロード）を検証できない**。
+> 該当箇所は「実装済みだが未検証（外部ツール必須）」として明記する。
 
 ## アーキテクチャ
 
@@ -74,4 +79,4 @@ luac -p <(cargo run -q -p emoteforge_core --example dump_client_lua)  # 生成 L
 - [Sollumz](https://github.com/Sollumz/Sollumz)（Blender アドオン）… YCD の import/edit/export（CodeWalker XML 経由）
 - [CodeWalker](https://github.com/dexyfex/CodeWalker) … XML ↔ バイナリ変換・フォーマット参照
 
-詳細は `phase2/README.md` と `docs/superpowers/plans/2026-05-29-fivem-emote-tool.md` を参照。
+詳細は実装プラン `docs/superpowers/plans/2026-05-29-fivem-emote-tool.md` を参照（Phase 2 実装時に `phase2/README.md` を追加予定）。
