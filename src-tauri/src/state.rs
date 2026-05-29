@@ -23,9 +23,21 @@ impl AppState {
     pub fn load(handle: &AppHandle) -> Result<Self, String> {
         // tauri.conf.json は `../catalog/...` を列挙しており、バンドル時は `_up_/` に再マップされる
         // （$RESOURCE/_up_/catalog/catalog.json）。バンドル/開発の双方を網羅するため候補を順に試す。
-        let catalog_path = resolve(handle, &["_up_/catalog/catalog.json", "catalog/catalog.json"], "../catalog/catalog.json");
-        let dump_index_path = resolve(handle, &["_up_/catalog/dump_index.json", "catalog/dump_index.json"], "../catalog/dump_index.json");
-        let schema_path = resolve(handle, &["_up_/schema/emote.schema.json", "schema/emote.schema.json"], "../schema/emote.schema.json");
+        let catalog_path = resolve(
+            handle,
+            &["_up_/catalog/catalog.json", "catalog/catalog.json"],
+            "../catalog/catalog.json",
+        );
+        let dump_index_path = resolve(
+            handle,
+            &["_up_/catalog/dump_index.json", "catalog/dump_index.json"],
+            "../catalog/dump_index.json",
+        );
+        let schema_path = resolve(
+            handle,
+            &["_up_/schema/emote.schema.json", "schema/emote.schema.json"],
+            "../schema/emote.schema.json",
+        );
 
         let mut catalog = Catalog::load(&catalog_path)
             .map_err(|e| format!("failed to load catalog ({}): {e}", catalog_path.display()))?;
