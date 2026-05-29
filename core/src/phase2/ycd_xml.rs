@@ -44,12 +44,27 @@ pub fn build_ycd_xml(rt: &RetargetResult) -> String {
     s.push_str(&format!("      <Duration value=\"{duration:.6}\" />\n"));
     s.push_str("      <Unknown1C>Default</Unknown1C>\n");
 
-    // BoneIds: 各 GTA ボーン × トラック(0=回転)。
+    // ルートボーン(あれば)の tag。Track 1 = 移動(translation)用に使う。
+    let root_tag = rt
+        .clip
+        .joints
+        .iter()
+        .position(|j| j.parent.is_none())
+        .and_then(|i| rt.bone_tags.get(i).map(|(_, t)| *t));
+
+    // BoneIds: 各 GTA ボーン × トラック(0=回転)。ルートには移動トラック(1)も足す。
     s.push_str("      <BoneIds>\n");
     for (_, tag) in &rt.bone_tags {
         s.push_str("        <Item>\n");
         s.push_str(&format!("          <BoneId value=\"{tag}\" />\n"));
         s.push_str("          <Track value=\"0\" />\n");
+        s.push_str("          <Unk0 value=\"0\" />\n");
+        s.push_str("        </Item>\n");
+    }
+    if let Some(rtag) = root_tag {
+        s.push_str("        <Item>\n");
+        s.push_str(&format!("          <BoneId value=\"{rtag}\" />\n"));
+        s.push_str("          <Track value=\"1\" />\n");
         s.push_str("          <Unk0 value=\"0\" />\n");
         s.push_str("        </Item>\n");
     }
@@ -67,6 +82,18 @@ pub fn build_ycd_xml(rt: &RetargetResult) -> String {
             for f in &clip.frames {
                 let q = f.rotations[bi];
                 s.push_str(&format!("                {:.6}\n", q[comp]));
+            }
+            s.push_str("              </Values>\n");
+            s.push_str("            </Item>\n");
+        }
+    }
+    // ルートの移動(translation) x/y/z を 3 本の RawFloat で。移動モーションを保持する。
+    if root_tag.is_some() {
+        for comp in 0..3 {
+            s.push_str("            <Item type=\"RawFloat\">\n");
+            s.push_str("              <Values>\n");
+            for f in &clip.frames {
+                s.push_str(&format!("                {:.6}\n", f.root_translation[comp]));
             }
             s.push_str("              </Values>\n");
             s.push_str("            </Item>\n");
@@ -154,9 +181,11 @@ mod tests {
     }
 
     #[test]
-    fn channels_have_four_components_per_bone() {
+    fn channels_cover_rotations_and_root_translation() {
         let xml = build_ycd_xml(&retarget(&clip()));
-        // 2 bones * 4 quaternion components = 8 RawFloat channels
-        assert_eq!(xml.matches("type=\"RawFloat\"").count(), 8);
+        // 2 bones * 4 quaternion components + root 3 translation = 11 RawFloat channels
+        assert_eq!(xml.matches("type=\"RawFloat\"").count(), 11);
+        // ルートの移動トラック(Track 1)が存在する。
+        assert!(xml.contains("<Track value=\"1\" />"));
     }
 }

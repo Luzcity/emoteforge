@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-use crate::catalog::Catalog;
+use crate::catalog::{Catalog, CatalogEntry};
 use crate::codex::prompt::build_prompt;
 use crate::model::EmoteSpec;
 
@@ -147,11 +147,30 @@ impl<'a, R: CodexRunner> Orchestrator<'a, R> {
     }
 
     pub fn generate(&self, user_prompt: &str) -> Result<EmoteSpec, CodexError> {
-        let candidates = self.catalog.search(user_prompt, self.candidate_limit);
+        let candidates = self.candidates_for(user_prompt);
         let prompt = build_prompt(user_prompt, &candidates);
         let raw = self.runner.run(&prompt, &self.schema_path)?;
         let spec = parse_spec(&raw)?;
         Ok(spec)
+    }
+
+    /// 検索ヒットを集め、薄い場合（日本語プロンプト等で英語タグに当たらない時）は
+    /// カテゴリ横断の多様サンプルで候補を底上げする。key で重複排除。
+    fn candidates_for(&self, user_prompt: &str) -> Vec<&CatalogEntry> {
+        let mut hits = self.catalog.search(user_prompt, self.candidate_limit);
+        if hits.len() < self.candidate_limit {
+            let mut seen: std::collections::HashSet<&str> =
+                hits.iter().map(|e| e.key.as_str()).collect();
+            for e in self.catalog.diverse_sample(self.candidate_limit) {
+                if hits.len() >= self.candidate_limit {
+                    break;
+                }
+                if seen.insert(e.key.as_str()) {
+                    hits.push(e);
+                }
+            }
+        }
+        hits
     }
 }
 
@@ -216,6 +235,25 @@ mod tests {
         let noisy = format!("here is your emote:\n```json\n{}\n```\n", VALID);
         let spec = parse_spec(&noisy).unwrap();
         assert_eq!(spec.name, "cheer");
+    }
+
+    #[test]
+    fn japanese_prompt_still_gets_candidates() {
+        // 英語タグに当たらない日本語でも diverse_sample で候補が底上げされる。
+        let cat = catalog();
+        let orch = Orchestrator::new(
+            MockRunner { response: VALID.to_string() },
+            &cat,
+            PathBuf::from("schema/emote.schema.json"),
+        );
+        let cands = orch.candidates_for("酔っ払って千鳥足で踊る");
+        assert!(cands.len() >= 20, "expected topped-up candidates, got {}", cands.len());
+        // 重複していないこと。
+        let mut keys: Vec<&str> = cands.iter().map(|e| e.key.as_str()).collect();
+        keys.sort();
+        let before = keys.len();
+        keys.dedup();
+        assert_eq!(before, keys.len(), "candidates must be unique");
     }
 
     #[test]

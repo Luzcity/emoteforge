@@ -106,6 +106,36 @@ impl Catalog {
     pub fn entries(&self) -> &[CatalogEntry] {
         &self.entries
     }
+
+    /// カテゴリ横断で多様なエントリを最大 n 件サンプリングする。
+    /// 検索がヒットしない（例: 日本語プロンプト）場合の候補底上げに使う。
+    pub fn diverse_sample(&self, n: usize) -> Vec<&CatalogEntry> {
+        use std::collections::BTreeMap;
+        // カテゴリごとに分類し、ラウンドロビンで取り出す。
+        let mut by_cat: BTreeMap<&str, Vec<&CatalogEntry>> = BTreeMap::new();
+        for e in &self.entries {
+            by_cat.entry(e.category.as_str()).or_default().push(e);
+        }
+        let mut out = Vec::with_capacity(n);
+        let mut round = 0;
+        loop {
+            let mut added_any = false;
+            for entries in by_cat.values() {
+                if let Some(e) = entries.get(round) {
+                    out.push(*e);
+                    added_any = true;
+                    if out.len() >= n {
+                        return out;
+                    }
+                }
+            }
+            if !added_any {
+                break;
+            }
+            round += 1;
+        }
+        out
+    }
 }
 
 fn tokenize(s: &str) -> Vec<String> {
