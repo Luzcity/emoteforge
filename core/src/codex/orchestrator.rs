@@ -295,7 +295,10 @@ mod tests {
     fn english_search_returns_relevant_results() {
         let cat = catalog();
         let hits = cat.search("dance", 20);
-        assert!(!hits.is_empty(), "English keyword 'dance' should match catalog entries");
+        assert!(
+            !hits.is_empty(),
+            "English keyword 'dance' should match catalog entries"
+        );
         // All results should be relevant (tag or display name contains the term).
         for entry in &hits {
             let relevant = entry.tags.iter().any(|t| t.contains("dance"))
@@ -309,7 +312,10 @@ mod tests {
     fn english_search_smoke_returns_ambient_entries() {
         let cat = catalog();
         let hits = cat.search("smoke", 10);
-        assert!(!hits.is_empty(), "'smoke' should match ambient smoke entries");
+        assert!(
+            !hits.is_empty(),
+            "'smoke' should match ambient smoke entries"
+        );
         assert!(
             hits.iter().any(|e| e.tags.contains(&"smoke".to_string())),
             "at least one hit should have 'smoke' tag"
@@ -333,7 +339,11 @@ mod tests {
     fn english_search_respects_limit_and_ordering() {
         let cat = catalog();
         let hits = cat.search("idle", 5);
-        assert!(hits.len() <= 5, "should respect limit of 5, got {}", hits.len());
+        assert!(
+            hits.len() <= 5,
+            "should respect limit of 5, got {}",
+            hits.len()
+        );
         assert!(!hits.is_empty(), "'idle' should have matches");
     }
 
@@ -355,7 +365,9 @@ mod tests {
     fn candidates_for_english_prompt_with_good_hits() {
         let cat = catalog();
         let orch = Orchestrator::new(
-            MockRunner { response: VALID.to_string() },
+            MockRunner {
+                response: VALID.to_string(),
+            },
             &cat,
             PathBuf::from("schema/emote.schema.json"),
         );
@@ -369,7 +381,10 @@ mod tests {
         );
         // The top results should be relevant to coffee.
         assert!(
-            cands.iter().take(5).any(|e| e.tags.contains(&"coffee".to_string())),
+            cands
+                .iter()
+                .take(5)
+                .any(|e| e.tags.contains(&"coffee".to_string())),
             "top candidates should include coffee-tagged entries"
         );
     }
@@ -378,7 +393,9 @@ mod tests {
     fn candidates_for_japanese_prompt_reaches_floor() {
         let cat = catalog();
         let orch = Orchestrator::new(
-            MockRunner { response: VALID.to_string() },
+            MockRunner {
+                response: VALID.to_string(),
+            },
             &cat,
             PathBuf::from("schema/emote.schema.json"),
         );
@@ -396,7 +413,9 @@ mod tests {
     fn candidates_for_japanese_never_exceeds_limit() {
         let cat = catalog();
         let mut orch = Orchestrator::new(
-            MockRunner { response: VALID.to_string() },
+            MockRunner {
+                response: VALID.to_string(),
+            },
             &cat,
             PathBuf::from("schema/emote.schema.json"),
         );
@@ -413,7 +432,9 @@ mod tests {
     fn candidates_for_has_no_duplicates() {
         let cat = catalog();
         let orch = Orchestrator::new(
-            MockRunner { response: VALID.to_string() },
+            MockRunner {
+                response: VALID.to_string(),
+            },
             &cat,
             PathBuf::from("schema/emote.schema.json"),
         );
@@ -423,7 +444,11 @@ mod tests {
         let original_len = keys.len();
         keys.sort();
         keys.dedup();
-        assert_eq!(original_len, keys.len(), "candidates must have no duplicates");
+        assert_eq!(
+            original_len,
+            keys.len(),
+            "candidates must have no duplicates"
+        );
     }
 
     // --- diverse_sample tests ---
@@ -432,7 +457,11 @@ mod tests {
     fn diverse_sample_returns_requested_count() {
         let cat = catalog();
         let sample = cat.diverse_sample(16);
-        assert_eq!(sample.len(), 16, "diverse_sample(16) should return exactly 16");
+        assert_eq!(
+            sample.len(),
+            16,
+            "diverse_sample(16) should return exactly 16"
+        );
     }
 
     #[test]
@@ -473,7 +502,11 @@ mod tests {
     fn diverse_sample_one_returns_single_entry() {
         let cat = catalog();
         let sample = cat.diverse_sample(1);
-        assert_eq!(sample.len(), 1, "diverse_sample(1) should return exactly 1 entry");
+        assert_eq!(
+            sample.len(),
+            1,
+            "diverse_sample(1) should return exactly 1 entry"
+        );
     }
 
     #[test]
