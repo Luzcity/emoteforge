@@ -22,12 +22,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: rustfmt
         run: cargo fmt --all --check
+      # --locked: Cargo.lock の更新漏れを CI で検出し、暗黙の依存ドリフトを防ぐ。
       - name: clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: check
-        run: cargo check --workspace --all-targets
+        run: cargo check --workspace --all-targets --locked
       - name: test
-        run: cargo test --workspace
+        run: cargo test --workspace --locked
 
   tauri-check:
     name: Tauri shell (cargo check)
@@ -57,7 +58,7 @@ jobs:
       - name: stub generated resource
         run: '[ -f catalog/dump_index.json ] || echo "{}" > catalog/dump_index.json'
       - name: cargo check (src-tauri)
-        run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets
+        run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets --locked
 
   frontend:
     name: Frontend
@@ -105,7 +106,7 @@ jobs:
       # 同梱ブリッジをテンプレートから再生成し、コミット済みと差分が無いことを確認する。
       # generator を黒箱として扱い、出力が手で同期されているかを検証する。
       - name: regenerate bundled bridge
-        run: cargo run --quiet -p emoteforge_core --example sync_bridge
+        run: cargo run --quiet --locked -p emoteforge_core --example sync_bridge
       - name: assert no drift
         run: git diff --exit-code -- fivem/emoteforge_bridge
       - name: luac -p on regenerated output
