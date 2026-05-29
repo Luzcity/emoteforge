@@ -288,4 +288,233 @@ mod tests {
         );
         assert!(orch.generate("x").is_err());
     }
+
+    // --- Catalog search tests for English and Japanese prompts ---
+
+    #[test]
+    fn english_search_returns_relevant_results() {
+        let cat = catalog();
+        let hits = cat.search("dance", 20);
+        assert!(
+            !hits.is_empty(),
+            "English keyword 'dance' should match catalog entries"
+        );
+        // All results should be relevant (tag or display name contains the term).
+        for entry in &hits {
+            let relevant = entry.tags.iter().any(|t| t.contains("dance"))
+                || entry.display_name.to_lowercase().contains("dance")
+                || entry.category.contains("dance");
+            assert!(relevant, "entry {:?} is not relevant to 'dance'", entry.key);
+        }
+    }
+
+    #[test]
+    fn english_search_smoke_returns_ambient_entries() {
+        let cat = catalog();
+        let hits = cat.search("smoke", 10);
+        assert!(
+            !hits.is_empty(),
+            "'smoke' should match ambient smoke entries"
+        );
+        assert!(
+            hits.iter().any(|e| e.tags.contains(&"smoke".to_string())),
+            "at least one hit should have 'smoke' tag"
+        );
+    }
+
+    #[test]
+    fn japanese_prompt_returns_few_or_no_direct_hits() {
+        // Pure Japanese text shouldn't match English tags well.
+        let cat = catalog();
+        let hits = cat.search("踊りながら手を振る", 40);
+        // Japanese text has no matching English tokens, so direct hits should be sparse.
+        assert!(
+            hits.len() < 16,
+            "pure Japanese prompt should yield fewer than CANDIDATE_FLOOR direct hits, got {}",
+            hits.len()
+        );
+    }
+
+    #[test]
+    fn english_search_respects_limit_and_ordering() {
+        let cat = catalog();
+        let hits = cat.search("idle", 5);
+        assert!(
+            hits.len() <= 5,
+            "should respect limit of 5, got {}",
+            hits.len()
+        );
+        assert!(!hits.is_empty(), "'idle' should have matches");
+    }
+
+    #[test]
+    fn search_empty_query_returns_first_entries() {
+        let cat = catalog();
+        let hits = cat.search("", 10);
+        // Empty query returns up to limit entries from the start of the catalog.
+        assert_eq!(hits.len(), 10);
+        // Should be the first 10 entries.
+        for (i, entry) in hits.iter().enumerate() {
+            assert_eq!(entry.key, cat.entries()[i].key);
+        }
+    }
+
+    // --- candidates_for tests (integrating search + diverse_sample) ---
+
+    #[test]
+    fn candidates_for_english_prompt_with_good_hits() {
+        let cat = catalog();
+        let orch = Orchestrator::new(
+            MockRunner {
+                response: VALID.to_string(),
+            },
+            &cat,
+            PathBuf::from("schema/emote.schema.json"),
+        );
+        let cands = orch.candidates_for("coffee drinking idle");
+        // English prompt with good matches should get at least CANDIDATE_FLOOR results.
+        assert!(
+            cands.len() >= Orchestrator::<MockRunner>::CANDIDATE_FLOOR,
+            "English prompt should produce at least {} candidates, got {}",
+            Orchestrator::<MockRunner>::CANDIDATE_FLOOR,
+            cands.len()
+        );
+        // The top results should be relevant to coffee.
+        assert!(
+            cands
+                .iter()
+                .take(5)
+                .any(|e| e.tags.contains(&"coffee".to_string())),
+            "top candidates should include coffee-tagged entries"
+        );
+    }
+
+    #[test]
+    fn candidates_for_japanese_prompt_reaches_floor() {
+        let cat = catalog();
+        let orch = Orchestrator::new(
+            MockRunner {
+                response: VALID.to_string(),
+            },
+            &cat,
+            PathBuf::from("schema/emote.schema.json"),
+        );
+        let cands = orch.candidates_for("拍手して喜ぶ");
+        // Japanese prompt with no English matches should still reach CANDIDATE_FLOOR.
+        assert!(
+            cands.len() >= Orchestrator::<MockRunner>::CANDIDATE_FLOOR,
+            "Japanese prompt should reach floor of {}, got {}",
+            Orchestrator::<MockRunner>::CANDIDATE_FLOOR,
+            cands.len()
+        );
+    }
+
+    #[test]
+    fn candidates_for_japanese_never_exceeds_limit() {
+        let cat = catalog();
+        let mut orch = Orchestrator::new(
+            MockRunner {
+                response: VALID.to_string(),
+            },
+            &cat,
+            PathBuf::from("schema/emote.schema.json"),
+        );
+        orch.candidate_limit = 20;
+        let cands = orch.candidates_for("寝転がってリラックス");
+        assert!(
+            cands.len() <= 20,
+            "candidates should never exceed candidate_limit, got {}",
+            cands.len()
+        );
+    }
+
+    #[test]
+    fn candidates_for_has_no_duplicates() {
+        let cat = catalog();
+        let orch = Orchestrator::new(
+            MockRunner {
+                response: VALID.to_string(),
+            },
+            &cat,
+            PathBuf::from("schema/emote.schema.json"),
+        );
+        // Test with a prompt that will require diverse_sample fill.
+        let cands = orch.candidates_for("全く存在しないキーワード");
+        let mut keys: Vec<&str> = cands.iter().map(|e| e.key.as_str()).collect();
+        let original_len = keys.len();
+        keys.sort();
+        keys.dedup();
+        assert_eq!(
+            original_len,
+            keys.len(),
+            "candidates must have no duplicates"
+        );
+    }
+
+    // --- diverse_sample tests ---
+
+    #[test]
+    fn diverse_sample_returns_requested_count() {
+        let cat = catalog();
+        let sample = cat.diverse_sample(16);
+        assert_eq!(
+            sample.len(),
+            16,
+            "diverse_sample(16) should return exactly 16"
+        );
+    }
+
+    #[test]
+    fn diverse_sample_covers_multiple_categories() {
+        let cat = catalog();
+        let sample = cat.diverse_sample(16);
+        let categories: std::collections::HashSet<&str> =
+            sample.iter().map(|e| e.category.as_str()).collect();
+        // With 8 categories in the catalog and 16 samples, round-robin should hit many.
+        assert!(
+            categories.len() >= 4,
+            "diverse_sample should cover multiple categories, got {:?}",
+            categories
+        );
+    }
+
+    #[test]
+    fn diverse_sample_round_robin_distributes_evenly() {
+        let cat = catalog();
+        let sample = cat.diverse_sample(24);
+        // Count entries per category.
+        let mut counts: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+        for e in &sample {
+            *counts.entry(e.category.as_str()).or_default() += 1;
+        }
+        // Round-robin with 8 categories and 24 samples means ~3 per category.
+        // Allow some variance but no single category should dominate.
+        let max_count = *counts.values().max().unwrap();
+        let min_count = *counts.values().min().unwrap();
+        assert!(
+            max_count - min_count <= 1,
+            "round-robin should distribute evenly; counts: {:?}",
+            counts
+        );
+    }
+
+    #[test]
+    fn diverse_sample_one_returns_single_entry() {
+        let cat = catalog();
+        let sample = cat.diverse_sample(1);
+        assert_eq!(
+            sample.len(),
+            1,
+            "diverse_sample(1) should return exactly 1 entry"
+        );
+    }
+
+    #[test]
+    fn diverse_sample_large_n_returns_all_entries() {
+        let cat = catalog();
+        let total = cat.len();
+        let sample = cat.diverse_sample(total + 100);
+        // Cannot return more than total entries.
+        assert_eq!(sample.len(), total);
+    }
 }
