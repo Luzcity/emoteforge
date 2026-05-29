@@ -28,6 +28,8 @@ pub fn run() {
             commands::set_codex_model,
             commands::export_emotes,
             commands::install_bridge_resource,
+            commands::import_bvh_ycd_xml,
+            commands::generate_ai_motion_ycd_xml,
         ])
         .run(tauri::generate_context!())
         .expect("error while running EmoteForge");

@@ -7,6 +7,8 @@ use emoteforge_core::catalog::CatalogEntry;
 use emoteforge_core::codex::{CliCodexRunner, Orchestrator};
 use emoteforge_core::export::{export, ResourceManifest};
 use emoteforge_core::model::EmoteSpec;
+use emoteforge_core::phase2::{build_ycd_xml, parse_bvh, retarget};
+use emoteforge_core::phase3::{CommandMotionGenerator, MotionGenerator};
 use emoteforge_core::preview::{self, install_bridge, BridgeConfig};
 use emoteforge_core::validate::{validate, ValidationIssue};
 use serde::Serialize;
@@ -101,4 +103,61 @@ pub fn install_bridge_resource(resources_dir: String) -> Result<String, String> 
     install_bridge(Path::new(&resources_dir))
         .map(|p| p.display().to_string())
         .map_err(|e| e.to_string())
+}
+
+// ---- Phase 2/3: .ycd パイプライン ----
+
+/// .ycd.xml 生成結果の要約。
+#[derive(Debug, Serialize)]
+pub struct YcdBuildResult {
+    pub out_path: String,
+    pub frame_count: usize,
+    pub bone_count: usize,
+    /// GTA ボーンへ対応付けできなかった元ボーン名（情報提示用）。
+    pub unmapped: Vec<String>,
+}
+
+fn file_stem(path: &str) -> String {
+    Path::new(path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("clip")
+        .to_string()
+}
+
+/// BVH を取り込み GTA リターゲット → CodeWalker `.ycd.xml` を書き出す。
+/// （`.ycd` バイナリ化は CodeWalker/Sollumz が別途必要）
+#[tauri::command]
+pub fn import_bvh_ycd_xml(bvh_path: String, out_path: String) -> Result<YcdBuildResult, String> {
+    let text = std::fs::read_to_string(&bvh_path).map_err(|e| e.to_string())?;
+    let clip = parse_bvh(&text, &file_stem(&bvh_path)).map_err(|e| e.to_string())?;
+    let rt = retarget(&clip);
+    std::fs::write(&out_path, build_ycd_xml(&rt)).map_err(|e| e.to_string())?;
+    Ok(YcdBuildResult {
+        out_path,
+        frame_count: rt.clip.frame_count(),
+        bone_count: rt.bone_tags.len(),
+        unmapped: rt.unmapped,
+    })
+}
+
+/// 外部 text-to-motion ランナーで生成 → GTA リターゲット → `.ycd.xml` 書き出し。
+/// runner はプロンプトを stdin で受け、MotionClip JSON を stdout に出すコマンド。
+#[tauri::command]
+pub fn generate_ai_motion_ycd_xml(
+    prompt: String,
+    runner_bin: String,
+    runner_args: Vec<String>,
+    out_path: String,
+) -> Result<YcdBuildResult, String> {
+    let gen = CommandMotionGenerator::new(runner_bin, runner_args);
+    let clip = gen.generate(&prompt).map_err(|e| e.to_string())?;
+    let rt = retarget(&clip);
+    std::fs::write(&out_path, build_ycd_xml(&rt)).map_err(|e| e.to_string())?;
+    Ok(YcdBuildResult {
+        out_path,
+        frame_count: rt.clip.frame_count(),
+        bone_count: rt.bone_tags.len(),
+        unmapped: rt.unmapped,
+    })
 }
