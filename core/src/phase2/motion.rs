@@ -135,10 +135,20 @@ mod tests {
     fn motion_clip_duration() {
         let clip = MotionClip {
             name: "t".into(),
-            joints: vec![Joint { name: "root".into(), parent: None, offset: [0.0; 3] }],
+            joints: vec![Joint {
+                name: "root".into(),
+                parent: None,
+                offset: [0.0; 3],
+            }],
             frames: vec![
-                Frame { rotations: vec![[0.0, 0.0, 0.0, 1.0]], root_translation: [0.0; 3] },
-                Frame { rotations: vec![[0.0, 0.0, 0.0, 1.0]], root_translation: [0.0; 3] },
+                Frame {
+                    rotations: vec![[0.0, 0.0, 0.0, 1.0]],
+                    root_translation: [0.0; 3],
+                },
+                Frame {
+                    rotations: vec![[0.0, 0.0, 0.0, 1.0]],
+                    root_translation: [0.0; 3],
+                },
             ],
             frame_time: 0.033,
         };

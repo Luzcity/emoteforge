@@ -47,8 +47,12 @@ export default function CatalogSearch({ onAdd }: Props) {
               className="flex items-center justify-between gap-2 text-xs bg-panel rounded px-2 py-1"
             >
               <div className="min-w-0">
-                <div className="truncate">{e.displayName} <span className="opacity-50">[{e.category}]</span></div>
-                <div className="truncate font-mono opacity-60">{e.dict} / {e.clip}</div>
+                <div className="truncate">
+                  {e.displayName} <span className="opacity-50">[{e.category}]</span>
+                </div>
+                <div className="truncate font-mono opacity-60">
+                  {e.dict} / {e.clip}
+                </div>
               </div>
               <button
                 aria-label={`add-${e.key}`}

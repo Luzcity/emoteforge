@@ -53,7 +53,8 @@ impl Default for CliCodexRunner {
 impl CodexRunner for CliCodexRunner {
     fn run(&self, prompt: &str, schema_path: &Path) -> Result<String, CodexError> {
         // 最終メッセージの出力先（一時ファイル）。
-        let out_file = std::env::temp_dir().join(format!("emoteforge_codex_{}.json", std::process::id()));
+        let out_file =
+            std::env::temp_dir().join(format!("emoteforge_codex_{}.json", std::process::id()));
 
         let mut cmd = Command::new(&self.binary);
         cmd.arg("exec")
@@ -70,7 +71,9 @@ impl CodexRunner for CliCodexRunner {
         }
         // プロンプトは stdin で渡す（引数長/エスケープ事故を避ける）。
         cmd.arg("-");
-        cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        cmd.stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
 
         let mut child = cmd.spawn().map_err(CodexError::Spawn)?;
         {
@@ -159,7 +162,10 @@ impl<'a, R: CodexRunner> Orchestrator<'a, R> {
     fn candidates_for(&self, user_prompt: &str) -> Vec<&CatalogEntry> {
         let mut hits = self.catalog.search(user_prompt, self.candidate_limit);
         // ヒットが下限未満のときだけ補充（常に 40 まで埋めてノイズ化させない）。
-        let target = hits.len().max(Self::CANDIDATE_FLOOR).min(self.candidate_limit);
+        let target = hits
+            .len()
+            .max(Self::CANDIDATE_FLOOR)
+            .min(self.candidate_limit);
         if hits.len() < target {
             let mut seen: std::collections::HashSet<&str> =
                 hits.iter().map(|e| e.key.as_str()).collect();
@@ -189,7 +195,8 @@ fn parse_spec(raw: &str) -> Result<EmoteSpec, CodexError> {
             let end = raw.rfind('}');
             if let (Some(s), Some(e)) = (start, end) {
                 if e > s {
-                    return serde_json::from_str::<EmoteSpec>(&raw[s..=e]).map_err(CodexError::Parse);
+                    return serde_json::from_str::<EmoteSpec>(&raw[s..=e])
+                        .map_err(CodexError::Parse);
                 }
             }
             serde_json::from_str::<EmoteSpec>(raw).map_err(CodexError::Parse)
@@ -225,7 +232,9 @@ mod tests {
     fn generate_parses_valid_response() {
         let cat = catalog();
         let orch = Orchestrator::new(
-            MockRunner { response: VALID.to_string() },
+            MockRunner {
+                response: VALID.to_string(),
+            },
             &cat,
             PathBuf::from("schema/emote.schema.json"),
         );
@@ -247,12 +256,18 @@ mod tests {
         // 英語タグに当たらない日本語でも diverse_sample で候補が底上げされる。
         let cat = catalog();
         let orch = Orchestrator::new(
-            MockRunner { response: VALID.to_string() },
+            MockRunner {
+                response: VALID.to_string(),
+            },
             &cat,
             PathBuf::from("schema/emote.schema.json"),
         );
         let cands = orch.candidates_for("酔っ払って千鳥足で踊る");
-        assert!(cands.len() >= 12, "expected topped-up candidates, got {}", cands.len());
+        assert!(
+            cands.len() >= 12,
+            "expected topped-up candidates, got {}",
+            cands.len()
+        );
         // 重複していないこと。
         let mut keys: Vec<&str> = cands.iter().map(|e| e.key.as_str()).collect();
         keys.sort();
@@ -265,7 +280,9 @@ mod tests {
     fn generate_errors_on_garbage() {
         let cat = catalog();
         let orch = Orchestrator::new(
-            MockRunner { response: "not json at all".into() },
+            MockRunner {
+                response: "not json at all".into(),
+            },
             &cat,
             PathBuf::from("schema/emote.schema.json"),
         );

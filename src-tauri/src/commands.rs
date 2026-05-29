@@ -24,7 +24,10 @@ pub struct GeneratedEmote {
 
 /// プロンプトから emote を生成し、検証して返す。
 #[tauri::command]
-pub fn generate_emote(prompt: String, state: tauri::State<'_, AppState>) -> Result<GeneratedEmote, String> {
+pub fn generate_emote(
+    prompt: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<GeneratedEmote, String> {
     let runner = CliCodexRunner {
         binary: state.codex_bin.clone(),
         model: state.model.lock().unwrap().clone(),
@@ -44,14 +47,24 @@ pub fn validate_emote(spec: EmoteSpec, state: tauri::State<'_, AppState>) -> Gen
 
 fn validate_and_wrap(spec: EmoteSpec, state: &AppState) -> GeneratedEmote {
     match validate(&spec, &state.catalog) {
-        Ok(normalized) => GeneratedEmote { spec: normalized, issues: vec![] },
-        Err(report) => GeneratedEmote { spec, issues: report.issues },
+        Ok(normalized) => GeneratedEmote {
+            spec: normalized,
+            issues: vec![],
+        },
+        Err(report) => GeneratedEmote {
+            spec,
+            issues: report.issues,
+        },
     }
 }
 
 /// カタログ検索（候補クリップの提示）。
 #[tauri::command]
-pub fn search_catalog(query: String, limit: usize, state: tauri::State<'_, AppState>) -> Vec<CatalogEntry> {
+pub fn search_catalog(
+    query: String,
+    limit: usize,
+    state: tauri::State<'_, AppState>,
+) -> Vec<CatalogEntry> {
     state
         .catalog
         .search(&query, limit)
@@ -65,8 +78,15 @@ pub fn search_catalog(query: String, limit: usize, state: tauri::State<'_, AppSt
 #[tauri::command]
 pub fn preview_emote(spec: EmoteSpec, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let normalized = validate(&spec, &state.catalog).map_err(|report| {
-        let msgs: Vec<String> = report.issues.iter().map(|i| format!("{}: {}", i.field, i.message)).collect();
-        format!("無効な emote のためプレビューを中止しました: {}", msgs.join("; "))
+        let msgs: Vec<String> = report
+            .issues
+            .iter()
+            .map(|i| format!("{}: {}", i.field, i.message))
+            .collect();
+        format!(
+            "無効な emote のためプレビューを中止しました: {}",
+            msgs.join("; ")
+        )
     })?;
     let cfg = state.bridge.lock().unwrap().clone();
     preview::preview(&normalized, &cfg).map_err(|e| e.to_string())
@@ -83,7 +103,10 @@ pub fn stop_preview(state: tauri::State<'_, AppState>) -> Result<(), String> {
 #[tauri::command]
 pub fn set_bridge_url(url: String, state: tauri::State<'_, AppState>) {
     let mut cfg = state.bridge.lock().unwrap();
-    *cfg = BridgeConfig { base_url: url, timeout: Duration::from_secs(5) };
+    *cfg = BridgeConfig {
+        base_url: url,
+        timeout: Duration::from_secs(5),
+    };
 }
 
 /// 使用する codex モデルを設定する（None でデフォルト）。
@@ -108,13 +131,20 @@ pub fn export_emotes(
         match validate(spec, &state.catalog) {
             Ok(n) => normalized.push(n),
             Err(report) => {
-                let msgs: Vec<String> = report.issues.iter().map(|i| format!("{}: {}", i.field, i.message)).collect();
+                let msgs: Vec<String> = report
+                    .issues
+                    .iter()
+                    .map(|i| format!("{}: {}", i.field, i.message))
+                    .collect();
                 errors.push(format!("「{}」: {}", spec.display_name, msgs.join("; ")));
             }
         }
     }
     if !errors.is_empty() {
-        return Err(format!("無効な emote があるためエクスポートを中止しました:\n{}", errors.join("\n")));
+        return Err(format!(
+            "無効な emote があるためエクスポートを中止しました:\n{}",
+            errors.join("\n")
+        ));
     }
     export(&normalized, Path::new(&out_dir), &resource_name).map_err(|e| e.to_string())
 }

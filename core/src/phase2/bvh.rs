@@ -76,14 +76,23 @@ pub fn parse_bvh(text: &str, name: &str) -> Result<MotionClip, BvhError> {
             }
             "OFFSET" => {
                 let idx = *stack.last().ok_or_else(|| err("OFFSET outside joint"))?;
-                joints[idx].offset = [read_f32(&mut tokens)?, read_f32(&mut tokens)?, read_f32(&mut tokens)?];
+                joints[idx].offset = [
+                    read_f32(&mut tokens)?,
+                    read_f32(&mut tokens)?,
+                    read_f32(&mut tokens)?,
+                ];
             }
             "CHANNELS" => {
                 let idx = *stack.last().ok_or_else(|| err("CHANNELS outside joint"))?;
-                let n: usize = tokens.next().ok_or_else(|| err("channel count"))?.parse().map_err(|_| err("channel count int"))?;
+                let n: usize = tokens
+                    .next()
+                    .ok_or_else(|| err("channel count"))?
+                    .parse()
+                    .map_err(|_| err("channel count int"))?;
                 for _ in 0..n {
                     let c = tokens.next().ok_or_else(|| err("channel"))?;
-                    let ch = parse_channel(c).ok_or_else(|| BvhError::Parse(format!("unknown channel {c}")))?;
+                    let ch = parse_channel(c)
+                        .ok_or_else(|| BvhError::Parse(format!("unknown channel {c}")))?;
                     joints[idx].channels.push(ch);
                 }
             }
@@ -102,7 +111,11 @@ pub fn parse_bvh(text: &str, name: &str) -> Result<MotionClip, BvhError> {
 
     expect(&mut tokens, "MOTION")?;
     expect(&mut tokens, "Frames:")?;
-    let frame_count: usize = tokens.next().ok_or_else(|| err("frames"))?.parse().map_err(|_| err("frames int"))?;
+    let frame_count: usize = tokens
+        .next()
+        .ok_or_else(|| err("frames"))?
+        .parse()
+        .map_err(|_| err("frames int"))?;
     expect(&mut tokens, "Frame")?;
     expect(&mut tokens, "Time:")?;
     let frame_time = read_f32(&mut tokens)?;
@@ -120,7 +133,11 @@ pub fn parse_bvh(text: &str, name: &str) -> Result<MotionClip, BvhError> {
 
     let out_joints = joints
         .iter()
-        .map(|j| Joint { name: j.name.clone(), parent: j.parent, offset: j.offset })
+        .map(|j| Joint {
+            name: j.name.clone(),
+            parent: j.parent,
+            offset: j.offset,
+        })
         .collect();
 
     Ok(MotionClip {
@@ -172,10 +189,16 @@ fn decode_frame(joints: &[JointDef], values: &[f32]) -> Frame {
             root_translation = pos;
         }
     }
-    Frame { rotations, root_translation }
+    Frame {
+        rotations,
+        root_translation,
+    }
 }
 
-fn expect<'a, I: Iterator<Item = &'a str>>(it: &mut std::iter::Peekable<I>, want: &str) -> Result<(), BvhError> {
+fn expect<'a, I: Iterator<Item = &'a str>>(
+    it: &mut std::iter::Peekable<I>,
+    want: &str,
+) -> Result<(), BvhError> {
     match it.next() {
         Some(t) if t == want => Ok(()),
         Some(t) => Err(BvhError::Parse(format!("expected {want}, got {t}"))),
@@ -183,7 +206,9 @@ fn expect<'a, I: Iterator<Item = &'a str>>(it: &mut std::iter::Peekable<I>, want
     }
 }
 
-fn read_f32<'a, I: Iterator<Item = &'a str>>(it: &mut std::iter::Peekable<I>) -> Result<f32, BvhError> {
+fn read_f32<'a, I: Iterator<Item = &'a str>>(
+    it: &mut std::iter::Peekable<I>,
+) -> Result<f32, BvhError> {
     it.next()
         .ok_or_else(|| err("number"))?
         .parse()

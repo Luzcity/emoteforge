@@ -67,13 +67,19 @@ fn humanoid_to_gta() -> HashMap<&'static str, &'static str> {
 
 /// ボーン名 → GTA tag。
 pub fn bone_tag(gta_name: &str) -> Option<u16> {
-    GTA_BONE_TAGS.iter().find(|(n, _)| *n == gta_name).map(|(_, t)| *t)
+    GTA_BONE_TAGS
+        .iter()
+        .find(|(n, _)| *n == gta_name)
+        .map(|(_, t)| *t)
 }
 
 /// 名前を対応表キーへ正規化（"mixamorig:LeftArm" → "leftarm"）。
 fn normalize(name: &str) -> String {
     let base = name.rsplit(':').next().unwrap_or(name);
-    base.chars().filter(|c| c.is_ascii_alphanumeric()).collect::<String>().to_lowercase()
+    base.chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .collect::<String>()
+        .to_lowercase()
 }
 
 /// リターゲット結果。
@@ -115,8 +121,11 @@ pub fn retarget(src: &MotionClip) -> RetargetResult {
         .enumerate()
         .filter_map(|(i, r)| r.as_ref().map(|_| i))
         .collect();
-    let old_to_new: HashMap<usize, usize> =
-        kept.iter().enumerate().map(|(new, &old)| (old, new)).collect();
+    let old_to_new: HashMap<usize, usize> = kept
+        .iter()
+        .enumerate()
+        .map(|(new, &old)| (old, new))
+        .collect();
 
     // 親が脱落している場合は、最近接の生存祖先まで遡って再ペアレントする。
     let nearest_kept_ancestor = |mut p: Option<usize>| -> Option<usize> {
@@ -134,7 +143,11 @@ pub fn retarget(src: &MotionClip) -> RetargetResult {
         .map(|&old| {
             let (name, _) = resolved[old].clone().unwrap();
             let parent = nearest_kept_ancestor(src.joints[old].parent);
-            Joint { name, parent, offset: src.joints[old].offset }
+            Joint {
+                name,
+                parent,
+                offset: src.joints[old].offset,
+            }
         })
         .collect();
 
@@ -186,7 +199,10 @@ mod tests {
         MotionClip {
             name: "c".into(),
             joints,
-            frames: vec![Frame { rotations, root_translation: [0.0; 3] }],
+            frames: vec![Frame {
+                rotations,
+                root_translation: [0.0; 3],
+            }],
             frame_time: 0.033,
         }
     }

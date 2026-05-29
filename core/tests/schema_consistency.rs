@@ -46,7 +46,9 @@ fn serialized_spec_is_valid_against_schema() {
     let instance = serde_json::to_value(sample()).unwrap();
     let result = compiled.validate(&instance);
     if let Err(errors) = result {
-        let msgs: Vec<String> = errors.map(|e| format!("{} @ {}", e, e.instance_path)).collect();
+        let msgs: Vec<String> = errors
+            .map(|e| format!("{} @ {}", e, e.instance_path))
+            .collect();
         panic!("instance invalid against schema:\n{}", msgs.join("\n"));
     }
 }

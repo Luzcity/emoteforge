@@ -48,16 +48,13 @@ export const validateEmote = (spec: EmoteSpec) =>
 export const searchCatalog = (query: string, limit = 30) =>
   invoke<CatalogEntry[]>("search_catalog", { query, limit });
 
-export const previewEmote = (spec: EmoteSpec) =>
-  invoke<void>("preview_emote", { spec });
+export const previewEmote = (spec: EmoteSpec) => invoke<void>("preview_emote", { spec });
 
 export const stopPreview = () => invoke<void>("stop_preview");
 
-export const setBridgeUrl = (url: string) =>
-  invoke<void>("set_bridge_url", { url });
+export const setBridgeUrl = (url: string) => invoke<void>("set_bridge_url", { url });
 
-export const setCodexModel = (model: string | null) =>
-  invoke<void>("set_codex_model", { model });
+export const setCodexModel = (model: string | null) => invoke<void>("set_codex_model", { model });
 
 export const exportEmotes = (specs: EmoteSpec[], outDir: string, resourceName: string) =>
   invoke<ResourceManifest>("export_emotes", { specs, outDir, resourceName });

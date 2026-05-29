@@ -95,7 +95,10 @@ mod tests {
             prop: None,
             facial: None,
             movement_type: MovementType::Stationary,
-            meta: Meta { source: "codex".into(), schema_version: 1 },
+            meta: Meta {
+                source: "codex".into(),
+                schema_version: 1,
+            },
         }
     }
 
@@ -135,8 +138,16 @@ mod tests {
     #[test]
     fn client_lua_has_balanced_parens_and_braces() {
         let lua = client_lua();
-        assert_eq!(lua.matches('(').count(), lua.matches(')').count(), "parens balance");
-        assert_eq!(lua.matches('{').count(), lua.matches('}').count(), "braces balance");
+        assert_eq!(
+            lua.matches('(').count(),
+            lua.matches(')').count(),
+            "parens balance"
+        );
+        assert_eq!(
+            lua.matches('{').count(),
+            lua.matches('}').count(),
+            "braces balance"
+        );
     }
 
     #[test]
@@ -144,9 +155,15 @@ mod tests {
         // Codex レビューで判明した修正点の回帰防止:
         let lua = crate::export::lua_templates::PLAYER_LUA;
         // walkable は UPPERBODY|SECONDARY を基本にする。
-        assert!(lua.contains("f | 16 | 32"), "walkable should base on upperbody|secondary");
+        assert!(
+            lua.contains("f | 16 | 32"),
+            "walkable should base on upperbody|secondary"
+        );
         // 誤った既定 51 を撤廃済み。
-        assert!(!lua.contains("f = 51"), "spurious 51 default must be removed");
+        assert!(
+            !lua.contains("f = 51"),
+            "spurious 51 default must be removed"
+        );
         // AF_TAG_SYNC_OUT は 32768（64 ではない）。
         assert!(lua.contains("AF_TAG_SYNC_OUT' then f = f | 32768"));
         assert!(!lua.contains("AF_TAG_SYNC_OUT' then f = f | 64"));
@@ -157,7 +174,10 @@ mod tests {
     #[test]
     fn rejects_empty_and_bad_names() {
         let tmp = tempfile::tempdir().unwrap();
-        assert!(matches!(export(&[], tmp.path(), "x"), Err(ExportError::Empty)));
+        assert!(matches!(
+            export(&[], tmp.path(), "x"),
+            Err(ExportError::Empty)
+        ));
         assert!(matches!(
             export(&[sample()], tmp.path(), "../evil"),
             Err(ExportError::InvalidName(_))

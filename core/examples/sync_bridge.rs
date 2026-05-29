@@ -12,8 +12,7 @@ use emoteforge_core::export::lua_templates::{
 
 fn main() -> std::io::Result<()> {
     // CARGO_MANIFEST_DIR = <repo>/core なので 1 つ上がリポジトリルート。
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../fivem/emoteforge_bridge");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../fivem/emoteforge_bridge");
     std::fs::create_dir_all(&dir)?;
     std::fs::write(dir.join("client.lua"), bridge_client_lua())?;
     std::fs::write(dir.join("server.lua"), BRIDGE_SERVER_LUA)?;

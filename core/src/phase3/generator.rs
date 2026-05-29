@@ -100,7 +100,10 @@ impl MotionGenerator for CommandMotionGenerator {
 }
 
 /// プロンプト → 生成 → リターゲット → .ycd.xml を一気通貫で行う。
-pub fn generate_to_ycd_xml<G: MotionGenerator>(gen: &G, prompt: &str) -> Result<String, MotionGenError> {
+pub fn generate_to_ycd_xml<G: MotionGenerator>(
+    gen: &G,
+    prompt: &str,
+) -> Result<String, MotionGenError> {
     let clip = gen.generate(prompt)?;
     let rt = crate::phase2::retarget::retarget(&clip);
     Ok(crate::phase2::ycd_xml::build_ycd_xml(&rt))
@@ -114,8 +117,15 @@ mod tests {
     fn fixture_clip() -> MotionClip {
         MotionClip {
             name: "ai_wave".into(),
-            joints: vec![Joint { name: "mixamorig:Hips".into(), parent: None, offset: [0.0; 3] }],
-            frames: vec![Frame { rotations: vec![[0.0, 0.0, 0.0, 1.0]], root_translation: [0.0; 3] }],
+            joints: vec![Joint {
+                name: "mixamorig:Hips".into(),
+                parent: None,
+                offset: [0.0; 3],
+            }],
+            frames: vec![Frame {
+                rotations: vec![[0.0, 0.0, 0.0, 1.0]],
+                root_translation: [0.0; 3],
+            }],
             frame_time: 0.033,
         }
     }

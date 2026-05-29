@@ -144,7 +144,10 @@ export default function App() {
       </div>
 
       {error && (
-        <div className="mx-4 mt-2 bg-red-950/60 border border-red-700 text-red-200 rounded px-3 py-2 text-sm" role="alert">
+        <div
+          className="mx-4 mt-2 bg-red-950/60 border border-red-700 text-red-200 rounded px-3 py-2 text-sm"
+          role="alert"
+        >
           {error}
         </div>
       )}
@@ -156,7 +159,10 @@ export default function App() {
 
       <main className="flex-1 grid grid-cols-[260px_1fr_300px] gap-4 p-4 min-h-0">
         <aside className="bg-panel rounded-lg p-3 overflow-auto">
-          <button className="w-full mb-3 px-3 py-1.5 rounded bg-surface text-sm" onClick={handleNewEmote}>
+          <button
+            className="w-full mb-3 px-3 py-1.5 rounded bg-surface text-sm"
+            onClick={handleNewEmote}
+          >
             ＋ 空のエモート
           </button>
           <EmoteLibrary

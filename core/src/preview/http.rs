@@ -33,7 +33,8 @@ fn parse_url(url: &str) -> Result<Url, HttpError> {
     let (host, port) = match authority.rsplit_once(':') {
         Some((h, p)) => (
             h.to_string(),
-            p.parse::<u16>().map_err(|_| HttpError::InvalidUrl(url.to_string()))?,
+            p.parse::<u16>()
+                .map_err(|_| HttpError::InvalidUrl(url.to_string()))?,
         ),
         None => (authority.to_string(), 80),
     };
@@ -52,14 +53,18 @@ pub fn post_json(url: &str, body: &str, timeout: Duration) -> Result<(u16, Strin
     let u = parse_url(url)?;
     let addr = format!("{}:{}", u.host, u.port);
     let mut stream = TcpStream::connect(&addr).map_err(HttpError::Connect)?;
-    stream.set_read_timeout(Some(timeout)).map_err(HttpError::Io)?;
-    stream.set_write_timeout(Some(timeout)).map_err(HttpError::Io)?;
+    stream
+        .set_read_timeout(Some(timeout))
+        .map_err(HttpError::Io)?;
+    stream
+        .set_write_timeout(Some(timeout))
+        .map_err(HttpError::Io)?;
 
     let req = format!(
         "POST {} HTTP/1.1\r\nHost: {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
         u.path,
         u.host,
-        body.as_bytes().len(),
+        body.len(), // str::len は UTF-8 バイト長 = Content-Length
         body
     );
     stream.write_all(req.as_bytes()).map_err(HttpError::Io)?;
@@ -69,7 +74,10 @@ pub fn post_json(url: &str, body: &str, timeout: Duration) -> Result<(u16, Strin
     stream.read_to_string(&mut raw).map_err(HttpError::Io)?;
 
     let status = parse_status(&raw).unwrap_or(0);
-    let body = raw.split_once("\r\n\r\n").map(|(_, b)| b.to_string()).unwrap_or_default();
+    let body = raw
+        .split_once("\r\n\r\n")
+        .map(|(_, b)| b.to_string())
+        .unwrap_or_default();
     Ok((status, body))
 }
 

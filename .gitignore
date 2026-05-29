@@ -11,4 +11,4 @@ catalog/animDictsCompact.json
 catalog/dump_index.json
 src-tauri/target/
 src-tauri/gen/
-src-tauri/Cargo.lock
+# src-tauri/Cargo.lock はバイナリ crate のため追跡する（CI の --locked / 再現性）。

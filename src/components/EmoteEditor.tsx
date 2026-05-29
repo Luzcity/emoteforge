@@ -15,10 +15,18 @@ interface Props {
   previewing: boolean;
 }
 
-export default function EmoteEditor({ spec, issues, onChange, onPreview, onStop, previewing }: Props) {
+export default function EmoteEditor({
+  spec,
+  issues,
+  onChange,
+  onPreview,
+  onStop,
+  previewing,
+}: Props) {
   const patch = (p: Partial<EmoteSpec>) => onChange({ ...spec, ...p });
   const setClips = (clips: ClipRef[]) => patch({ clips });
-  const addCatalogClip = (e: CatalogEntry) => setClips([...spec.clips, defaultClip(e.dict, e.clip)]);
+  const addCatalogClip = (e: CatalogEntry) =>
+    setClips([...spec.clips, defaultClip(e.dict, e.clip)]);
   const addEmptyClip = () => setClips([...spec.clips, defaultClip("", "")]);
 
   return (
@@ -72,7 +80,9 @@ export default function EmoteEditor({ spec, issues, onChange, onPreview, onStop,
               <li key={i} className="text-red-200">
                 <span className="font-mono">{iss.field}</span>: {iss.message}
                 {iss.suggestions.length > 0 && (
-                  <div className="text-xs text-gray-400">候補: {iss.suggestions.slice(0, 5).join(" / ")}</div>
+                  <div className="text-xs text-gray-400">
+                    候補: {iss.suggestions.slice(0, 5).join(" / ")}
+                  </div>
                 )}
               </li>
             ))}
