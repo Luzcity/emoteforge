@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { EmoteSpec } from "./types/emote";
 import { emptyEmote } from "./types/emote";
 import * as api from "./lib/api";
@@ -7,6 +7,8 @@ import PromptBar from "./components/PromptBar";
 import EmoteEditor from "./components/EmoteEditor";
 import EmoteLibrary from "./components/EmoteLibrary";
 import ExportDialog from "./components/ExportDialog";
+import SettingsPanel from "./components/SettingsPanel";
+import MotionPanel from "./components/MotionPanel";
 
 export default function App() {
   const [emotes, setEmotes] = useState<EmoteSpec[]>([]);
@@ -17,8 +19,26 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  // 編集中の検証は非同期。古い結果が新しい状態を上書きしないよう連番でガードする。
+  const validateSeq = useRef(0);
 
   const active = activeIndex >= 0 ? emotes[activeIndex] : null;
+
+  // 子パネル用: 一方を出すとき他方は消す（error と status は同時に出さない既存方針に合わせる）。
+  const notifyError = (msg: string) => {
+    setStatus(null);
+    setError(msg);
+  };
+  const notifyStatus = (msg: string) => {
+    setError(null);
+    setStatus(msg);
+  };
+
+  // emote を切り替えたら検証結果は対象が変わるので破棄する（前 emote の issues 残留を防ぐ）。
+  const selectEmote = (i: number) => {
+    setActiveIndex(i);
+    setIssues([]);
+  };
 
   const addEmote = (spec: EmoteSpec) => {
     setEmotes((prev) => {
@@ -26,6 +46,9 @@ export default function App() {
       setActiveIndex(next.length - 1);
       return next;
     });
+    // 新規/生成 emote は別物なので前の検証結果を破棄する。handleGenerate は直後に
+    // 本物の issues を setIssues するため（同一 tick でバッチされ後勝ち）上書きされる。
+    setIssues([]);
   };
 
   const updateActive = (spec: EmoteSpec) => {
@@ -51,14 +74,16 @@ export default function App() {
 
   const handleEditorChange = async (spec: EmoteSpec) => {
     updateActive(spec);
+    const seq = ++validateSeq.current;
     try {
       const result = await api.validateEmote(spec);
+      // この検証より後に編集が走っていたら結果を捨てる（順不同到着での巻き戻し防止）。
+      if (seq !== validateSeq.current) return;
       setIssues(result.issues);
-      // 検証で正規化された spec（name サニタイズ・数値クランプ等）を UI へ反映。
-      // 問題が無い場合のみ反映し、編集中フィールドの上書き衝突を避ける。
-      if (result.issues.length === 0) {
-        updateActive(result.spec);
-      }
+      // 正規化済み spec はあえて書き戻さない（name サニタイズだけでなく playbackRate/blend の
+      // クランプ等すべての正規化を含む）。毎キーストロークで書き戻すと識別子欄にスペースや `_`
+      // を打てず（"wave hello" が "wavehello" に潰れる）、数値も入力途中で飛ぶため。
+      // 正規化は preview/export の検証ゲートで確実に適用される。
     } catch {
       /* 検証呼び出しの失敗は致命的でないため無視（編集は反映済み）。
          壊れた spec は preview/export 時の検証ゲートで確実に止まる。 */
@@ -137,7 +162,7 @@ export default function App() {
           <EmoteLibrary
             emotes={emotes}
             activeIndex={activeIndex}
-            onSelect={setActiveIndex}
+            onSelect={selectEmote}
             onDelete={handleDelete}
           />
         </aside>
@@ -159,8 +184,10 @@ export default function App() {
           )}
         </section>
 
-        <aside className="overflow-auto">
+        <aside className="overflow-auto space-y-4">
           <ExportDialog emoteCount={emotes.length} onExport={handleExport} exporting={exporting} />
+          <SettingsPanel onError={notifyError} onStatus={notifyStatus} />
+          <MotionPanel onError={notifyError} onStatus={notifyStatus} />
         </aside>
       </main>
     </div>
