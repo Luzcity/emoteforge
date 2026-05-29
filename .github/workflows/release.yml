@@ -44,18 +44,29 @@ jobs:
       - name: sync version from tag
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
+        # タグ名は ${{ }} で直接展開せず env 経由で渡す。
+        # 直接補間すると細工したタグ名でスクリプトインジェクションが成立するため。
+        env:
+          TAG_NAME: ${{ github.ref_name }}
         run: |
-          $version = "${{ github.ref_name }}".TrimStart('v')
+          $version = $env:TAG_NAME.TrimStart('v')
           $conf = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
           $conf.version = $version
           $conf | ConvertTo-Json -Depth 100 | Set-Content src-tauri/tauri.conf.json
           Write-Host "tauri.conf.json version -> $version"
 
-      # dump_index.json は生成物で未コミット。tauri.conf.json が宣言するリソースのため
-      # 存在しないと tauri-build が失敗する。CI と同様に空スタブを置く。
-      - name: stub generated resource
+      # tauri.conf.json が宣言する dump_index.json は生成物(未コミット)。
+      # リリースに空スタブを同梱すると実行時に存在検証が authoritative な空マップで
+      # 全滅するため、上流 dump から実データを生成する。dump は再現性のためコミット
+      # SHA に固定。生成器は catalog.json も上書きするので、テスト済みの版を保つため
+      # 生成後に git checkout で戻し、新鮮な dump_index.json だけを同梱する。
+      - name: generate dump index
         shell: bash
-        run: 'mkdir -p catalog; [ -f catalog/dump_index.json ] || echo "{}" > catalog/dump_index.json'
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://raw.githubusercontent.com/DurtyFree/gta-v-data-dumps/26292ec7cb4c8cb8525cfede86ab5685328b916b/animDictsCompact.json" -o catalog/animDictsCompact.json
+          node catalog/build_catalog.mjs
+          git checkout -- catalog/catalog.json
 
       - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:

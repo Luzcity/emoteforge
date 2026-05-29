@@ -1,0 +1,37 @@
+name: Claude Security Review
+
+# PR の作成・更新ごとに Claude(サブスク枠)でセキュリティ監査を走らせ、
+# 該当行へインラインコメントを残す。CodeRabbit/qodo/cubic とは別のセキュリティ観点担当。
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+# 既定の read-only を踏襲しつつ、PR へのコメント投稿だけ許可する。
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  security-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # 差分の全コンテキストを取るため
+      - uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: "--model claude-opus-4-8"
+          prompt: |
+            このPRの差分をセキュリティ監査の観点で重点レビューして。
+            該当行にインラインコメントを残すこと。チェック項目:
+            - インジェクション（SQL/コマンド/パス）と入力バリデーション不足
+            - 認証・認可の抜け、権限昇格の余地
+            - シークレット/認証情報のハードコードや漏洩
+            - 安全でないデシリアライズ、SSRF、XSS（NUI側含む）
+            - 依存関係の追加・更新に伴うサプライチェーンリスク
+            - レースコンディション、リソースリーク、入力サイズ未検証
+            重大度（Critical/High/Medium/Low）を付けて、
+            該当なしの項目はノイズになるので省略して。
+            CLAUDE.md の規約があればそれにも照らすこと。

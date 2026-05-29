@@ -70,6 +70,11 @@
                   libayatana-appindicator
                   openssl
                   glib
+                  # GTK/WebKit が実行時に dlopen で引く依存。buildInputs と揃える。
+                  cairo
+                  pango
+                  gdk-pixbuf
+                  atk
                 ]
               )
             }:$LD_LIBRARY_PATH"
