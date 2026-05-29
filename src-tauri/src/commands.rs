@@ -61,10 +61,15 @@ pub fn search_catalog(query: String, limit: usize, state: tauri::State<'_, AppSt
 }
 
 /// 編集中の emote を実ゲームでプレビュー再生する。
+/// 送信前に検証し、無効なら送らない（壊れた emote を実ゲームに送るのを防ぐ）。
 #[tauri::command]
 pub fn preview_emote(spec: EmoteSpec, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let normalized = validate(&spec, &state.catalog).map_err(|report| {
+        let msgs: Vec<String> = report.issues.iter().map(|i| format!("{}: {}", i.field, i.message)).collect();
+        format!("無効な emote のためプレビューを中止しました: {}", msgs.join("; "))
+    })?;
     let cfg = state.bridge.lock().unwrap().clone();
-    preview::preview(&spec, &cfg).map_err(|e| e.to_string())
+    preview::preview(&normalized, &cfg).map_err(|e| e.to_string())
 }
 
 /// プレビュー再生を停止する。

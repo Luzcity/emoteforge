@@ -86,6 +86,23 @@ pub fn validate(spec: &EmoteSpec, catalog: &Catalog) -> Result<EmoteSpec, Valida
         }
     }
 
+    // facial も実在検証する（PlayFacialAnim は不在時に沈黙失敗するため）。
+    if let Some(f) = &normalized.facial {
+        if f.dict.trim().is_empty() || f.clip.trim().is_empty() {
+            issues.push(ValidationIssue {
+                field: "facial".into(),
+                message: "facial dict and clip must not be empty".into(),
+                suggestions: vec![],
+            });
+        } else if !catalog.contains(&f.dict, &f.clip) {
+            issues.push(ValidationIssue {
+                field: "facial.clip".into(),
+                message: format!("unknown facial animation: {} / {}", f.dict, f.clip),
+                suggestions: catalog.clips_of(&f.dict).into_iter().take(8).collect(),
+            });
+        }
+    }
+
     if issues.is_empty() {
         Ok(normalized)
     } else {

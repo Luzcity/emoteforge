@@ -60,7 +60,8 @@ export default function App() {
         updateActive(result.spec);
       }
     } catch {
-      /* 検証は致命的でないため握り潰さずステータスのみ */
+      /* 検証呼び出しの失敗は致命的でないため無視（編集は反映済み）。
+         壊れた spec は preview/export 時の検証ゲートで確実に止まる。 */
     }
   };
 

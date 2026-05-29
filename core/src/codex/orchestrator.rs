@@ -154,15 +154,17 @@ impl<'a, R: CodexRunner> Orchestrator<'a, R> {
         Ok(spec)
     }
 
-    /// 検索ヒットを集め、薄い場合（日本語プロンプト等で英語タグに当たらない時）は
-    /// カテゴリ横断の多様サンプルで候補を底上げする。key で重複排除。
+    /// 検索ヒットを集め、薄い場合（日本語プロンプト等で英語タグに当たらない時）のみ
+    /// カテゴリ横断の多様サンプルで「下限」まで底上げする。意味あるヒットは薄めない。
     fn candidates_for(&self, user_prompt: &str) -> Vec<&CatalogEntry> {
         let mut hits = self.catalog.search(user_prompt, self.candidate_limit);
-        if hits.len() < self.candidate_limit {
+        // ヒットが下限未満のときだけ補充（常に 40 まで埋めてノイズ化させない）。
+        let target = hits.len().max(Self::CANDIDATE_FLOOR).min(self.candidate_limit);
+        if hits.len() < target {
             let mut seen: std::collections::HashSet<&str> =
                 hits.iter().map(|e| e.key.as_str()).collect();
-            for e in self.catalog.diverse_sample(self.candidate_limit) {
-                if hits.len() >= self.candidate_limit {
+            for e in self.catalog.diverse_sample(target) {
+                if hits.len() >= target {
                     break;
                 }
                 if seen.insert(e.key.as_str()) {
@@ -172,6 +174,9 @@ impl<'a, R: CodexRunner> Orchestrator<'a, R> {
         }
         hits
     }
+
+    /// 検索が薄い時に確保する候補数の下限。
+    const CANDIDATE_FLOOR: usize = 16;
 }
 
 /// codex 出力（JSON 文字列、前後にノイズがあり得る）から EmoteSpec を取り出す。
@@ -247,7 +252,7 @@ mod tests {
             PathBuf::from("schema/emote.schema.json"),
         );
         let cands = orch.candidates_for("酔っ払って千鳥足で踊る");
-        assert!(cands.len() >= 20, "expected topped-up candidates, got {}", cands.len());
+        assert!(cands.len() >= 12, "expected topped-up candidates, got {}", cands.len());
         // 重複していないこと。
         let mut keys: Vec<&str> = cands.iter().map(|e| e.key.as_str()).collect();
         keys.sort();
