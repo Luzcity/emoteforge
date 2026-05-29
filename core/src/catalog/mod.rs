@@ -242,7 +242,11 @@ mod tests {
     fn load_bytes_reads_embedded_catalog() {
         let bytes = std::fs::read(catalog_path()).unwrap();
         let c = Catalog::load_bytes(&bytes).expect("load_bytes should succeed");
-        assert!(c.len() > 100, "expected substantial catalog, got {}", c.len());
+        assert!(
+            c.len() > 100,
+            "expected substantial catalog, got {}",
+            c.len()
+        );
     }
 
     #[test]
