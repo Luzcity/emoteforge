@@ -31,7 +31,8 @@ jobs:
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 20
+          # flake.nix(Node 22)と揃え、依存解決のブレを抑える。
+          node-version: 22
           cache: npm
 
       # tauri-action はフロント依存を入れないので明示的に install する。
@@ -54,7 +55,7 @@ jobs:
       # 存在しないと tauri-build が失敗する。CI と同様に空スタブを置く。
       - name: stub generated resource
         shell: bash
-        run: '[ -f catalog/dump_index.json ] || echo "{}" > catalog/dump_index.json'
+        run: 'mkdir -p catalog; [ -f catalog/dump_index.json ] || echo "{}" > catalog/dump_index.json'
 
       - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
