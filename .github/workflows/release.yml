@@ -132,6 +132,8 @@ jobs:
             exit 1
           fi
           exe="${exes[0]}"
-          gh release upload "$TAG_NAME" \
-            "${exe}#EmoteForge-${TAG_NAME}-portable.exe" \
-            --clobber
+          # ポータブル exe は emotecreator.exe という名前で配布する。
+          # gh の `file#label` 構文は表示ラベルのみでダウンロード時のファイル名を変えないため、
+          # 実ファイル名を変えてから upload する。
+          cp "$exe" emotecreator.exe
+          gh release upload "$TAG_NAME" emotecreator.exe --clobber
