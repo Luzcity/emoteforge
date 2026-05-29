@@ -1,0 +1,47 @@
+# CodeRabbit 設定 — https://docs.coderabbit.ai/guides/configure-coderabbit
+# GitHub に CodeRabbit App を導入すると、この設定で PR を自動レビューする。
+language: "ja-JP"
+early_access: false
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  poem: false
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "main"
+  # 生成物・巨大データ・ロックファイルはレビュー対象外。
+  path_filters:
+    - "!catalog/catalog.json"
+    - "!catalog/dump_index.json"
+    - "!package-lock.json"
+    - "!dist/**"
+    - "!target/**"
+  # ファイル種別ごとの文脈をレビュアーに与える。
+  path_instructions:
+    - path: "core/src/phase2/**"
+      instructions: >
+        Phase 2 の .ycd 生成は CodeWalker/Sollumz 未検証の best-effort。
+        実バイナリ互換性そのものより、Rust の正しさ・パニック・境界条件を重視してレビューする。
+    - path: "core/src/export/lua_templates.rs"
+      instructions: >
+        ここが FiveM Lua の唯一の正。同梱の fivem/emoteforge_bridge/ はこのテンプレートから
+        生成され、preview::tests::bundled_bridge_matches_templates でドリフト検出される。
+        anim flag のビット値・facial ネイティブの取り違えに注意。
+    - path: "src/**/*.tsx"
+      instructions: >
+        Tauri コマンド呼び出しの引数キー(camelCase)は src-tauri 側の関数引数と一致する必要がある。
+        非同期 invoke のレース・状態残留に注意。
+  tools:
+    clippy:
+      enabled: true
+    biome:
+      enabled: true
+
+chat:
+  auto_reply: true

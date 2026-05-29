@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 同一ブランチの古い実行はキャンセルして無駄な並列を抑える。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: Rust (core)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: rustfmt
+        run: cargo fmt --all --check
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: check
+        run: cargo check --workspace --all-targets
+      - name: test
+        run: cargo test --workspace
+
+  tauri-check:
+    name: Tauri shell (cargo check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      # Tauri v2 の Linux ビルド依存。src-tauri はワークスペース除外のため個別に check する。
+      - name: install tauri system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
+            libayatana-appindicator3-dev librsvg2-dev libsoup-3.0-dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      # generate_context! が frontendDist(../dist) を要求するため先にビルドしておく。
+      - run: npm ci
+      - run: npm run build
+      # dump_index.json は生成物で未コミット。tauri.conf.json が宣言するリソースのため
+      # 存在しないと tauri-build が失敗する。CI のコンパイル確認用に空スタブを置く
+      # (実行時 with_dump_index は不在を許容するが、ビルド時はファイル存在が必要)。
+      - name: stub generated resource
+        run: '[ -f catalog/dump_index.json ] || echo "{}" > catalog/dump_index.json'
+      - name: cargo check (src-tauri)
+        run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: prettier
+        run: npm run format:check
+      - name: typecheck
+        run: npm run typecheck
+      - name: test
+        run: npm test
+      - name: build
+        run: npm run build
+
+  lua:
+    name: Lua syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install lua
+        run: sudo apt-get update && sudo apt-get install -y lua5.4
+      - name: luac -p (構文チェック)
+        run: |
+          set -e
+          for f in $(git ls-files '*.lua'); do
+            echo "checking $f"
+            luac5.4 -p "$f"
+          done
+
+  bridge-drift:
+    name: Bridge drift (black-box)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: install lua
+        run: sudo apt-get update && sudo apt-get install -y lua5.4
+      # 同梱ブリッジをテンプレートから再生成し、コミット済みと差分が無いことを確認する。
+      # generator を黒箱として扱い、出力が手で同期されているかを検証する。
+      - name: regenerate bundled bridge
+        run: cargo run --quiet -p emoteforge_core --example sync_bridge
+      - name: assert no drift
+        run: git diff --exit-code -- fivem/emoteforge_bridge
+      - name: luac -p on regenerated output
+        run: |
+          set -e
+          for f in fivem/emoteforge_bridge/*.lua; do luac5.4 -p "$f"; done
