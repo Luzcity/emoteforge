@@ -15,6 +15,13 @@ permissions:
 
 jobs:
   security-review:
+    # 同一 PR の連続更新で重複レビューが走らないよう、古い実行はキャンセルする。
+    concurrency:
+      group: security-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    # Fork からの PR ではシークレット(CLAUDE_CODE_OAUTH_TOKEN)にアクセスできず
+    # 必ず失敗するため、同一リポジトリの PR に限定する。
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
