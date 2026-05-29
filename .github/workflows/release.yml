@@ -62,16 +62,40 @@ jobs:
       # 生成後に git checkout で戻し、新鮮な dump_index.json だけを同梱する。
       - name: generate dump index
         shell: bash
+        # dump 取得元は単一ソース化のため env で定義し、curl と build_catalog.mjs で共有する。
+        # 再現性のためコミット SHA に固定。
+        env:
+          DUMP_URL: "https://raw.githubusercontent.com/DurtyFree/gta-v-data-dumps/26292ec7cb4c8cb8525cfede86ab5685328b916b/animDictsCompact.json"
         run: |
           set -euo pipefail
           # 瞬断や一時障害でリリースが落ちないよう retry/timeout を付ける。
           curl --fail --show-error --silent --location \
             --retry 3 --retry-delay 2 --retry-all-errors \
             --connect-timeout 20 --max-time 180 \
-            "https://raw.githubusercontent.com/DurtyFree/gta-v-data-dumps/26292ec7cb4c8cb8525cfede86ab5685328b916b/animDictsCompact.json" \
+            "$DUMP_URL" \
             -o catalog/animDictsCompact.json
           node catalog/build_catalog.mjs
           git checkout -- catalog/catalog.json
+          # 埋め込む dump_index が空/{} だと存在検証が無言で curated-only に劣化する。
+          # また committed catalog.json と固定 SHA dump がズレると、dump に無い curated 組が
+          # 実行時に検証拒否される。どちらもリリース前にここで弾く。
+          node -e '
+            const fs = require("fs");
+            const cat = JSON.parse(fs.readFileSync("catalog/catalog.json", "utf8"));
+            const idx = JSON.parse(fs.readFileSync("catalog/dump_index.json", "utf8"));
+            const dicts = Object.keys(idx).length;
+            if (dicts < 100) {
+              console.error(`dump_index degraded: only ${dicts} dicts`);
+              process.exit(1);
+            }
+            const missing = cat.entries.filter(e => !(idx[e.dict] && idx[e.dict].includes(e.clip)));
+            if (missing.length) {
+              console.error(`${missing.length} curated entries absent from dump_index (catalog/pin mismatch), e.g.:`);
+              console.error(missing.slice(0, 5).map(e => `  ${e.dict}/${e.clip}`).join("\n"));
+              process.exit(1);
+            }
+            console.log(`dump_index OK: ${dicts} dicts, all ${cat.entries.length} curated entries present`);
+          '
 
       - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
@@ -83,3 +107,31 @@ jobs:
           # 中身を確認してから手動で publish できるよう draft で作成する。
           releaseDraft: true
           prerelease: false
+
+      # インストーラに加え、全リソース埋め込み済みのポータブル exe を Release に添付する。
+      # catalog.json / dump_index.json / emote.schema.json はバイナリに include_bytes! で内包されており、
+      # この exe 単体で起動できる。
+      - name: upload portable exe
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Tauri v2 は productName(EmoteForge) で binary をリネームし得るため大小文字を問わず探す。
+          # build/・deps/ 配下のキャッシュ同名物を除外し、ちょうど 1 件でなければ明示的に失敗する
+          # （複数一致時に誤った exe を黙って添付するのを防ぐ）。
+          mapfile -t exes < <(find src-tauri/target -type f \
+            -not -path '*/release/build/*' -not -path '*/release/deps/*' \
+            -path '*/release/*' -iname 'emoteforge.exe')
+          if [ "${#exes[@]}" -ne 1 ]; then
+            echo "expected exactly 1 emoteforge.exe, found ${#exes[@]}:"
+            printf ' - %s\n' "${exes[@]}"
+            ls -R src-tauri/target || true
+            exit 1
+          fi
+          exe="${exes[0]}"
+          gh release upload "$TAG_NAME" \
+            "${exe}#EmoteForge-${TAG_NAME}-portable.exe" \
+            --clobber

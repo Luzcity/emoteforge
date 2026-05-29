@@ -13,7 +13,9 @@ import { dirname, join } from "node:path";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DUMP_PATH = join(HERE, "animDictsCompact.json");
+// dump 取得元 URL。CI は再現性のため DUMP_URL env で固定 SHA を渡す（単一ソース）。
 const DUMP_URL =
+  process.env.DUMP_URL ||
   "https://raw.githubusercontent.com/DurtyFree/gta-v-data-dumps/master/animDictsCompact.json";
 
 // emote として有用な dict ファミリ（接頭辞）と既定の振る舞い。

@@ -11,7 +11,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let st = AppState::load(app.handle()).map_err(|e| {
+            let st = AppState::load().map_err(|e| {
                 eprintln!("[EmoteForge] state load error: {e}");
                 std::io::Error::other(e)
             })?;

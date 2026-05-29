@@ -39,4 +39,8 @@ jobs:
       - uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--model claude-opus-4-8"
+          # CLAUDE.md は claude-code-action が自動で読む。レビュー依頼時に観点を確実に
+          # 適用させるため append-system-prompt で明示的にナッジする（モデルも固定）。
+          claude_args: >-
+            --model claude-opus-4-8
+            --append-system-prompt "レビュー依頼時はCLAUDE.mdのレビュー観点を全項目体系的に適用し、推測ではなくコードを根拠に、確信度の高い指摘へ重大度(Critical/High/Medium/Low)を付けて日本語で報告すること。該当なしの観点は省略。"

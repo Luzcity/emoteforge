@@ -26,11 +26,6 @@
   "bundle": {
     "active": true,
     "targets": ["nsis", "msi"],
-    "icon": ["icons/icon.png"],
-    "resources": [
-      "../catalog/catalog.json",
-      "../catalog/dump_index.json",
-      "../schema/emote.schema.json"
-    ]
+    "icon": ["icons/icon.png"]
   }
 }
