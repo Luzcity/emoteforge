@@ -15,11 +15,11 @@ pub struct EmoteSpec {
     pub looping: bool,
     /// 上半身のみに適用するか（歩きながらのエモート等）。
     pub upper_body_only: bool,
-    /// 手に持つ prop（任意）。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// 手に持つ prop（任意。未使用時は null）。
+    #[serde(default)]
     pub prop: Option<Prop>,
-    /// 表情オーバーレイ（任意）。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// 表情オーバーレイ（任意。未使用時は null）。
+    #[serde(default)]
     pub facial: Option<Facial>,
     /// 移動可否の分類。
     pub movement_type: MovementType,
@@ -194,12 +194,17 @@ mod tests {
     }
 
     #[test]
-    fn omits_none_prop_and_facial() {
+    fn none_prop_and_facial_serialize_as_null() {
         let mut spec = sample();
         spec.prop = None;
         spec.facial = None;
         let json = serde_json::to_value(&spec).unwrap();
-        assert!(json.get("prop").is_none());
-        assert!(json.get("facial").is_none());
+        // strict schema は全キー必須のため、未使用でも null として存在させる。
+        assert!(json["prop"].is_null());
+        assert!(json["facial"].is_null());
+        // null から None へ復元できる。
+        let back: EmoteSpec = serde_json::from_value(json).unwrap();
+        assert_eq!(back.prop, None);
+        assert_eq!(back.facial, None);
     }
 }
