@@ -275,7 +275,9 @@ fn validate_runner_bin(bin: &str) -> Result<(), String> {
 
 /// runner_args にシェルメタ文字が含まれていないことを検証する。
 fn validate_runner_args(args: &[String]) -> Result<(), String> {
-    const SHELL_META: &[char] = &['|', ';', '&', '$', '`', '(', ')', '{', '}', '<', '>', '!', '\n'];
+    const SHELL_META: &[char] = &[
+        '|', ';', '&', '$', '`', '(', ')', '{', '}', '<', '>', '!', '\n',
+    ];
     for (i, arg) in args.iter().enumerate() {
         if arg.contains(SHELL_META) {
             return Err(format!(
