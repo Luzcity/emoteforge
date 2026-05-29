@@ -100,13 +100,57 @@ pub fn stop_preview(state: tauri::State<'_, AppState>) -> Result<(), String> {
 }
 
 /// Preview Bridge の接続先 URL を設定する。
+/// localhost / 127.0.0.1 / プライベートネットワーク以外は拒否（emote データの外部送信防止）。
 #[tauri::command]
-pub fn set_bridge_url(url: String, state: tauri::State<'_, AppState>) {
+pub fn set_bridge_url(url: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    validate_bridge_url(&url)?;
     let mut cfg = state.bridge.lock().unwrap();
     *cfg = BridgeConfig {
         base_url: url,
         timeout: Duration::from_secs(5),
     };
+    Ok(())
+}
+
+fn validate_bridge_url(url: &str) -> Result<(), String> {
+    let rest = url
+        .strip_prefix("http://")
+        .ok_or_else(|| "bridge URL must use http:// scheme".to_string())?;
+    let authority = rest.split('/').next().unwrap_or("");
+    // IPv6 はブラケット表記（[::1] / [::1]:8080）。ブラケットを剥がしてからホスト判定する。
+    let host = if authority.starts_with('[') {
+        authority
+            .split(']')
+            .next()
+            .unwrap_or("")
+            .trim_start_matches('[')
+    } else {
+        authority
+            .rsplit_once(':')
+            .map(|(h, _)| h)
+            .unwrap_or(authority)
+    };
+    let allowed = matches!(host, "localhost" | "127.0.0.1" | "::1")
+        || host.starts_with("192.168.")
+        || host.starts_with("10.")
+        || is_172_private(host);
+    if !allowed {
+        return Err(format!(
+            "bridge URL host must be localhost or private network, got: {host}"
+        ));
+    }
+    Ok(())
+}
+
+fn is_172_private(host: &str) -> bool {
+    if let Some(rest) = host.strip_prefix("172.") {
+        if let Some(second) = rest.split('.').next() {
+            if let Ok(n) = second.parse::<u8>() {
+                return (16..=31).contains(&n);
+            }
+        }
+    }
+    false
 }
 
 /// 使用する codex モデルを設定する（None でデフォルト）。
@@ -124,6 +168,7 @@ pub fn export_emotes(
     resource_name: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<ResourceManifest, String> {
+    reject_path_traversal(&out_dir)?;
     // 各 emote を検証＆正規化。無効があればまとめて報告して中止。
     let mut normalized = Vec::with_capacity(specs.len());
     let mut errors = Vec::new();
@@ -181,6 +226,8 @@ fn file_stem(path: &str) -> String {
 /// （`.ycd` バイナリ化は CodeWalker/Sollumz が別途必要）
 #[tauri::command]
 pub fn import_bvh_ycd_xml(bvh_path: String, out_path: String) -> Result<YcdBuildResult, String> {
+    reject_path_traversal(&bvh_path)?;
+    reject_path_traversal(&out_path)?;
     let text = std::fs::read_to_string(&bvh_path).map_err(|e| e.to_string())?;
     let clip = parse_bvh(&text, &file_stem(&bvh_path)).map_err(|e| e.to_string())?;
     let rt = retarget(&clip);
@@ -195,6 +242,8 @@ pub fn import_bvh_ycd_xml(bvh_path: String, out_path: String) -> Result<YcdBuild
 
 /// 外部 text-to-motion ランナーで生成 → GTA リターゲット → `.ycd.xml` 書き出し。
 /// runner はプロンプトを stdin で受け、MotionClip JSON を stdout に出すコマンド。
+/// セキュリティ: runner_bin はファイル名のみ（PATH 解決）を許可し、絶対/相対パスは拒否。
+/// シェルメタ文字を含む引数も拒否する（コマンド注入防止）。
 #[tauri::command]
 pub fn generate_ai_motion_ycd_xml(
     prompt: String,
@@ -202,6 +251,9 @@ pub fn generate_ai_motion_ycd_xml(
     runner_args: Vec<String>,
     out_path: String,
 ) -> Result<YcdBuildResult, String> {
+    validate_runner_bin(&runner_bin)?;
+    validate_runner_args(&runner_args)?;
+    reject_path_traversal(&out_path)?;
     let gen = CommandMotionGenerator::new(runner_bin, runner_args);
     let clip = gen.generate(&prompt).map_err(|e| e.to_string())?;
     let rt = retarget(&clip);
@@ -212,4 +264,46 @@ pub fn generate_ai_motion_ycd_xml(
         bone_count: rt.bone_tags.len(),
         unmapped: rt.unmapped,
     })
+}
+
+/// runner_bin は PATH 上のバイナリ名のみ許可。パス区切りを含む場合は拒否。
+fn validate_runner_bin(bin: &str) -> Result<(), String> {
+    if bin.is_empty() {
+        return Err("runner binary name must not be empty".into());
+    }
+    if bin.contains('/') || bin.contains('\\') {
+        return Err(format!(
+            "runner binary must be a simple command name (no path separators): {bin}"
+        ));
+    }
+    if bin.contains("..") {
+        return Err("runner binary must not contain '..'".into());
+    }
+    Ok(())
+}
+
+/// runner_args にシェルメタ文字が含まれていないことを検証する。
+fn validate_runner_args(args: &[String]) -> Result<(), String> {
+    const SHELL_META: &[char] = &[
+        '|', ';', '&', '$', '`', '(', ')', '{', '}', '<', '>', '!', '\n',
+    ];
+    for (i, arg) in args.iter().enumerate() {
+        if arg.contains(SHELL_META) {
+            return Err(format!(
+                "runner_args[{i}] contains disallowed shell meta-characters"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// パスに `..` セグメントが含まれる場合に拒否する。
+fn reject_path_traversal(path: &str) -> Result<(), String> {
+    let p = Path::new(path);
+    for component in p.components() {
+        if matches!(component, std::path::Component::ParentDir) {
+            return Err(format!("path must not contain '..': {path}"));
+        }
+    }
+    Ok(())
 }
