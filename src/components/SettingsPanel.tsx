@@ -29,7 +29,11 @@ export default function SettingsPanel({ onError, onStatus }: Props) {
   const applyModel = async () => {
     try {
       await api.setCodexModel(model.trim() || null);
-      onStatus(model.trim() ? `codex モデルを ${model.trim()} に設定しました` : "codex モデルを既定に戻しました");
+      onStatus(
+        model.trim()
+          ? `codex モデルを ${model.trim()} に設定しました`
+          : "codex モデルを既定に戻しました"
+      );
     } catch (e) {
       onError(String(e));
     }

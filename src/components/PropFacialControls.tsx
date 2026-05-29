@@ -5,7 +5,12 @@ interface Props {
   onChange: (patch: Partial<EmoteSpec>) => void;
 }
 
-const DEFAULT_PROP: Prop = { model: "prop_cs_bottle_01", bone: 18905, offset: [0, 0, 0], rot: [0, 0, 0] };
+const DEFAULT_PROP: Prop = {
+  model: "prop_cs_bottle_01",
+  bone: 18905,
+  offset: [0, 0, 0],
+  rot: [0, 0, 0],
+};
 const DEFAULT_FACIAL: Facial = { dict: "facials@gen_male@base", clip: "mood_happy_1" };
 
 export default function PropFacialControls({ spec, onChange }: Props) {
@@ -51,7 +56,9 @@ export default function PropFacialControls({ spec, onChange }: Props) {
                   className="w-full bg-panel px-2 py-1 rounded"
                   aria-label="prop-bone"
                   value={spec.prop.bone}
-                  onChange={(e) => setProp({ ...spec.prop!, bone: parseInt(e.target.value, 10) || 0 })}
+                  onChange={(e) =>
+                    setProp({ ...spec.prop!, bone: parseInt(e.target.value, 10) || 0 })
+                  }
                 />
               </label>
             </div>

@@ -122,8 +122,12 @@ mod tests {
 
     #[test]
     fn preview_posts_emote_json() {
-        let (base, rx) = one_shot_server("HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\n{\"ok\":true}");
-        let cfg = BridgeConfig { base_url: base, timeout: Duration::from_secs(2) };
+        let (base, rx) =
+            one_shot_server("HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\n{\"ok\":true}");
+        let cfg = BridgeConfig {
+            base_url: base,
+            timeout: Duration::from_secs(2),
+        };
         preview(&sample(), &cfg).unwrap();
         let received = rx.recv_timeout(Duration::from_secs(2)).unwrap();
         let parsed: EmoteSpec = serde_json::from_str(&received).unwrap();
@@ -132,8 +136,12 @@ mod tests {
 
     #[test]
     fn preview_errors_on_non_2xx() {
-        let (base, _rx) = one_shot_server("HTTP/1.1 400 Bad Request\r\nContent-Length: 2\r\n\r\nno");
-        let cfg = BridgeConfig { base_url: base, timeout: Duration::from_secs(2) };
+        let (base, _rx) =
+            one_shot_server("HTTP/1.1 400 Bad Request\r\nContent-Length: 2\r\n\r\nno");
+        let cfg = BridgeConfig {
+            base_url: base,
+            timeout: Duration::from_secs(2),
+        };
         let err = preview(&sample(), &cfg).unwrap_err();
         assert!(matches!(err, PreviewError::BadStatus(400, _)));
     }
@@ -163,15 +171,26 @@ mod tests {
     /// 復活する。ずれたら `cargo run --example sync_bridge` で再生成する。
     #[test]
     fn bundled_bridge_matches_templates() {
-        use crate::export::lua_templates::{bridge_client_lua, BRIDGE_FXMANIFEST, BRIDGE_SERVER_LUA};
-        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../fivem/emoteforge_bridge");
+        use crate::export::lua_templates::{
+            bridge_client_lua, BRIDGE_FXMANIFEST, BRIDGE_SERVER_LUA,
+        };
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../fivem/emoteforge_bridge");
         let read = |name: &str| std::fs::read_to_string(dir.join(name)).unwrap_or_default();
         assert_eq!(
             read("client.lua"),
             bridge_client_lua(),
             "fivem/emoteforge_bridge/client.lua がテンプレートとずれています。`cargo run --example sync_bridge` で再生成してください"
         );
-        assert_eq!(read("server.lua"), BRIDGE_SERVER_LUA, "server.lua がずれています");
-        assert_eq!(read("fxmanifest.lua"), BRIDGE_FXMANIFEST, "fxmanifest.lua がずれています");
+        assert_eq!(
+            read("server.lua"),
+            BRIDGE_SERVER_LUA,
+            "server.lua がずれています"
+        );
+        assert_eq!(
+            read("fxmanifest.lua"),
+            BRIDGE_FXMANIFEST,
+            "fxmanifest.lua がずれています"
+        );
     }
 }

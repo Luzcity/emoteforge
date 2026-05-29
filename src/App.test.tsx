@@ -83,7 +83,10 @@ describe("App", () => {
   it("clears validation issues when switching emotes", async () => {
     (api.generateEmote as any)
       .mockResolvedValueOnce({ spec: { ...sampleSpec, name: "a", displayName: "AAA" }, issues: [] })
-      .mockResolvedValueOnce({ spec: { ...sampleSpec, name: "b", displayName: "BBB" }, issues: [] });
+      .mockResolvedValueOnce({
+        spec: { ...sampleSpec, name: "b", displayName: "BBB" },
+        issues: [],
+      });
     (api.validateEmote as any).mockResolvedValue({
       spec: sampleSpec,
       issues: [{ field: "clips[0].clip", message: "unknown animation", suggestions: [] }],

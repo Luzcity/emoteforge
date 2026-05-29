@@ -27,7 +27,9 @@ pub fn build_ycd_xml(rt: &RetargetResult) -> String {
     s.push_str("    <Item type=\"Animation\">\n");
     s.push_str(&format!("      <Hash>{clip_hash}</Hash>\n"));
     s.push_str(&format!("      <Name>pack/{}.clip</Name>\n", clip.name));
-    s.push_str(&format!("      <AnimationHash>{anim_hash}</AnimationHash>\n"));
+    s.push_str(&format!(
+        "      <AnimationHash>{anim_hash}</AnimationHash>\n"
+    ));
     s.push_str("      <StartTime value=\"0\" />\n");
     s.push_str(&format!("      <EndTime value=\"{duration:.6}\" />\n"));
     s.push_str("      <Rate value=\"1\" />\n");
@@ -40,7 +42,9 @@ pub fn build_ycd_xml(rt: &RetargetResult) -> String {
     s.push_str(&format!("      <Hash>{anim_hash}</Hash>\n"));
     s.push_str("      <Unknown10 value=\"0\" />\n");
     s.push_str(&format!("      <FrameCount value=\"{frame_count}\" />\n"));
-    s.push_str(&format!("      <SequenceFrameLimit value=\"{frame_count}\" />\n"));
+    s.push_str(&format!(
+        "      <SequenceFrameLimit value=\"{frame_count}\" />\n"
+    ));
     s.push_str(&format!("      <Duration value=\"{duration:.6}\" />\n"));
     s.push_str("      <Unknown1C>Default</Unknown1C>\n");
 
@@ -90,7 +94,13 @@ pub fn build_ycd_xml(rt: &RetargetResult) -> String {
 /// 名前を Hash 文字列向けに正規化。
 fn sanitize_hash(name: &str) -> String {
     name.chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 
@@ -110,8 +120,16 @@ mod tests {
         MotionClip {
             name: "wave_test".into(),
             joints: vec![
-                Joint { name: "SKEL_Pelvis".into(), parent: None, offset: [0.0; 3] },
-                Joint { name: "SKEL_R_UpperArm".into(), parent: Some(0), offset: [0.0; 3] },
+                Joint {
+                    name: "SKEL_Pelvis".into(),
+                    parent: None,
+                    offset: [0.0; 3],
+                },
+                Joint {
+                    name: "SKEL_R_UpperArm".into(),
+                    parent: Some(0),
+                    offset: [0.0; 3],
+                },
             ],
             frames: vec![
                 Frame {

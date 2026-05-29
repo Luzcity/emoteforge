@@ -29,7 +29,9 @@ export default function MotionPanel({ onError, onStatus }: Props) {
     try {
       const r = await fn();
       setResult(r);
-      onStatus(`${label}: ${r.frameCount} フレーム / ${r.boneCount} ボーンを ${r.outPath} に書き出しました`);
+      onStatus(
+        `${label}: ${r.frameCount} フレーム / ${r.boneCount} ボーンを ${r.outPath} に書き出しました`
+      );
     } catch (e) {
       onError(`${label}失敗: ${e}`);
     } finally {
@@ -47,7 +49,10 @@ export default function MotionPanel({ onError, onStatus }: Props) {
     const out = await pickSavePath("出力する .ycd.xml", "ai_motion.ycd.xml", YCD_FILTERS);
     if (!out) return;
     const args = runnerArgs.split(/\s+/).filter(Boolean);
-    await run(() => api.generateAiMotionYcdXml(prompt.trim(), runnerBin.trim(), args, out), "AIモーション生成");
+    await run(
+      () => api.generateAiMotionYcdXml(prompt.trim(), runnerBin.trim(), args, out),
+      "AIモーション生成"
+    );
   };
 
   const browseBvh = async () => {
@@ -57,9 +62,7 @@ export default function MotionPanel({ onError, onStatus }: Props) {
 
   return (
     <div className="bg-panel rounded-lg p-3 space-y-3">
-      <h2 className="text-xs uppercase tracking-wide text-gray-500">
-        モーション取込 (Phase 2/3)
-      </h2>
+      <h2 className="text-xs uppercase tracking-wide text-gray-500">モーション取込 (Phase 2/3)</h2>
       <p className="text-xs text-gray-500">
         .ycd.xml を出力します。実 .ycd 化・FiveM ロードは CodeWalker/Sollumz が別途必要な
         best-effort 出力です。

@@ -179,7 +179,10 @@ mod tests {
     fn loop_field_serializes_as_loop() {
         let json = serde_json::to_value(sample()).unwrap();
         assert!(json.get("loop").is_some(), "JSON should use key `loop`");
-        assert_eq!(json["clips"][0]["dict"], "amb@world_human_drinking@coffee@male@idle_a");
+        assert_eq!(
+            json["clips"][0]["dict"],
+            "amb@world_human_drinking@coffee@male@idle_a"
+        );
     }
 
     #[test]

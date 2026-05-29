@@ -22,7 +22,11 @@ fn live_generate_cheer_emote() {
         timeout: Duration::from_secs(180),
         cwd: Some(repo_root()),
     };
-    let orch = Orchestrator::new(runner, &catalog, repo_root().join("schema/emote.schema.json"));
+    let orch = Orchestrator::new(
+        runner,
+        &catalog,
+        repo_root().join("schema/emote.schema.json"),
+    );
 
     let spec = orch
         .generate("プレイヤーが嬉しそうに乾杯して喜ぶエモート")
@@ -31,5 +35,8 @@ fn live_generate_cheer_emote() {
     assert!(!spec.name.is_empty());
     assert!(!spec.clips.is_empty());
     assert_eq!(spec.meta.source, "codex");
-    println!("generated: {}", serde_json::to_string_pretty(&spec).unwrap());
+    println!(
+        "generated: {}",
+        serde_json::to_string_pretty(&spec).unwrap()
+    );
 }
