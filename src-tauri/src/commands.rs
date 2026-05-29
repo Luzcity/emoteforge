@@ -117,10 +117,19 @@ fn validate_bridge_url(url: &str) -> Result<(), String> {
         .strip_prefix("http://")
         .ok_or_else(|| "bridge URL must use http:// scheme".to_string())?;
     let authority = rest.split('/').next().unwrap_or("");
-    let host = authority
-        .rsplit_once(':')
-        .map(|(h, _)| h)
-        .unwrap_or(authority);
+    // IPv6 はブラケット表記（[::1] / [::1]:8080）。ブラケットを剥がしてからホスト判定する。
+    let host = if authority.starts_with('[') {
+        authority
+            .split(']')
+            .next()
+            .unwrap_or("")
+            .trim_start_matches('[')
+    } else {
+        authority
+            .rsplit_once(':')
+            .map(|(h, _)| h)
+            .unwrap_or(authority)
+    };
     let allowed = matches!(host, "localhost" | "127.0.0.1" | "::1")
         || host.starts_with("192.168.")
         || host.starts_with("10.")
