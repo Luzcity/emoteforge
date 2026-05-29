@@ -1,0 +1,85 @@
+name: Release
+
+# vX.Y.Z タグの push で Tauri アプリをビルドし、GitHub Release に
+# Windows インストーラ(nsis/msi)を添付する。手動検証用に dispatch も許可する。
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+# Release 作成にはリポジトリへの書き込みが要る(CI 既定の read のみでは不可)。
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & release (Windows)
+    # bundle ターゲットは nsis/msi(Windows 専用)。src-tauri はワークスペース除外で
+    # Win11 ビルド前提のため、Windows ランナーのみで実行する。
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable (pinned)
+
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
+        with:
+          workspaces: src-tauri
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          # flake.nix(Node 22)と揃え、依存解決のブレを抑える。
+          node-version: 22
+          cache: npm
+
+      # tauri-action はフロント依存を入れないので明示的に install する。
+      - run: npm ci
+
+      # tauri.conf.json は version をハードコードしている(0.1.0)。
+      # タグから採ったバージョンを書き込み、インストーラの版とタグを一致させる。
+      # dispatch 実行時(タグ無し)はファイルの値をそのまま使う。
+      - name: sync version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        # タグ名は ${{ }} で直接展開せず env 経由で渡す。
+        # 直接補間すると細工したタグ名でスクリプトインジェクションが成立するため。
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          $version = $env:TAG_NAME.TrimStart('v')
+          $conf = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          $conf.version = $version
+          $conf | ConvertTo-Json -Depth 100 | Set-Content src-tauri/tauri.conf.json
+          Write-Host "tauri.conf.json version -> $version"
+
+      # tauri.conf.json が宣言する dump_index.json は生成物(未コミット)。
+      # リリースに空スタブを同梱すると実行時に存在検証が authoritative な空マップで
+      # 全滅するため、上流 dump から実データを生成する。dump は再現性のためコミット
+      # SHA に固定。生成器は catalog.json も上書きするので、テスト済みの版を保つため
+      # 生成後に git checkout で戻し、新鮮な dump_index.json だけを同梱する。
+      - name: generate dump index
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 瞬断や一時障害でリリースが落ちないよう retry/timeout を付ける。
+          curl --fail --show-error --silent --location \
+            --retry 3 --retry-delay 2 --retry-all-errors \
+            --connect-timeout 20 --max-time 180 \
+            "https://raw.githubusercontent.com/DurtyFree/gta-v-data-dumps/26292ec7cb4c8cb8525cfede86ab5685328b916b/animDictsCompact.json" \
+            -o catalog/animDictsCompact.json
+          node catalog/build_catalog.mjs
+          git checkout -- catalog/catalog.json
+
+      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # タグ push 時はそのタグ名で、dispatch 時は app の version からタグを作る。
+          tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v__VERSION__' }}
+          releaseName: "EmoteForge ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v__VERSION__' }}"
+          # 中身を確認してから手動で publish できるよう draft で作成する。
+          releaseDraft: true
+          prerelease: false
