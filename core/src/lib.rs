@@ -5,6 +5,8 @@ pub mod catalog;
 pub mod codex;
 pub mod export;
 pub mod model;
+pub mod phase2;
+pub mod phase3;
 pub mod preview;
 pub mod validate;
 

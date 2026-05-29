@@ -75,9 +75,12 @@ impl CodexRunner for CliCodexRunner {
         let mut child = cmd.spawn().map_err(CodexError::Spawn)?;
         {
             use std::io::Write;
-            let stdin = child.stdin.take().expect("piped stdin");
-            let mut stdin = stdin;
-            stdin.write_all(prompt.as_bytes()).map_err(CodexError::Io)?;
+            let mut stdin = child.stdin.take().expect("piped stdin");
+            if let Err(e) = stdin.write_all(prompt.as_bytes()) {
+                if e.kind() != std::io::ErrorKind::BrokenPipe {
+                    return Err(CodexError::Io(e));
+                }
+            }
         }
 
         // タイムアウト付き待機。
