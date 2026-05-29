@@ -170,9 +170,11 @@ fivem_emote/
 - [ ] Commit: `feat: blender/sollumz ycd export pipeline`
 
 ### Task 15: Phase 2 を UI/Exporter に統合
-- [ ] `ClipRef.source`（`builtin` | `ycd`）拡張、ycd エモートは `stream/` 同梱で export
-- [ ] アプリ内 3D プレビュー（Three.js）で `MotionClip` を再生（GTA スケルトン GLB に適用）
-- [ ] Commit: `feat: integrate ycd emotes into export and 3D preview`
+- [x] `ClipRef.source`（`builtin` | `ycd`）拡張済み（モデルに実装）
+- [x] Tauri コマンド `import_bvh_ycd_xml` / `generate_ai_motion_ycd_xml` を結線
+- [ ] （未実装・将来）アプリ内 3D プレビュー（Three.js）で `MotionClip` を再生
+      → `.ycd` の実バイナリ/実スケルトンが無いと正確な検証ができないため後回し。
+        現状は実ゲームプレビュー(Phase1 Bridge)＋外部ツール(CodeWalker)確認で代替。
 
 ---
 
