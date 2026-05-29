@@ -9,3 +9,6 @@ node_modules/
 dist/
 catalog/animDictsCompact.json
 catalog/dump_index.json
+src-tauri/target/
+src-tauri/gen/
+src-tauri/Cargo.lock

@@ -18,7 +18,7 @@ pub enum ExportError {
 }
 
 /// エクスポート結果の要約。
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ResourceManifest {
     pub resource_name: String,
     pub dir: PathBuf,

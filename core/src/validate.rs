@@ -3,9 +3,10 @@
 
 use crate::catalog::Catalog;
 use crate::model::EmoteSpec;
+use serde::{Deserialize, Serialize};
 
 /// バリデーション結果。問題があれば issues に詳細を載せる。
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ValidationReport {
     pub issues: Vec<ValidationIssue>,
 }
@@ -17,7 +18,7 @@ impl ValidationReport {
 }
 
 /// 1 件の問題。clip 不実在時は suggestions に補修候補を載せる。
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ValidationIssue {
     /// 問題の場所（例: "clips[0].clip", "name"）。
     pub field: String,
