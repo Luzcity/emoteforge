@@ -35,18 +35,25 @@ local function attachProp(ped, prop)
   currentProp = obj
 end
 
+-- TaskPlayAnim フラグ。GTA/RAGE の anim flag 値に基づく:
+--   1=LOOPING, 2=HOLD_LAST_FRAME, 16=UPPERBODY, 32=SECONDARY,
+--   64=REORIENT_WHEN_FINISHED, 128=ABORT_ON_PED_MOVEMENT, 32768=TAG_SYNC_OUT
+-- walkable は「移動タスクと共存」のため UPPERBODY|SECONDARY を基本にする。
 local function animFlag(emote, clip)
   local f = 0
   if emote.loop then f = f | 1 end
-  if emote.upperBodyOnly then f = f | 16 end
+  if emote.upperBodyOnly or emote.movementType == 'walkable' then
+    f = f | 16 | 32
+  end
   for _, name in ipairs(clip.flags or {}) do
     if name == 'AF_LOOPING' then f = f | 1
     elseif name == 'AF_HOLD_LAST_FRAME' then f = f | 2
     elseif name == 'AF_UPPERBODY' then f = f | 16
     elseif name == 'AF_SECONDARY' then f = f | 32
-    elseif name == 'AF_TAG_SYNC_OUT' then f = f | 64 end
+    elseif name == 'AF_REORIENT_WHEN_FINISHED' then f = f | 64
+    elseif name == 'AF_ABORT_ON_PED_MOVEMENT' then f = f | 128
+    elseif name == 'AF_TAG_SYNC_OUT' then f = f | 32768 end
   end
-  if f == 0 and emote.movementType == 'walkable' then f = 51 end
   return f
 end
 
@@ -83,8 +90,9 @@ local function playEmoteObj(emote)
   CreateThread(function()
     clearProp()
     attachProp(ped, emote.prop)
+    -- 表情は専用ネイティブで再生する（body skeleton の secondary slot ではなく facial override）。
     if emote.facial and ensureDict(emote.facial.dict) then
-      TaskPlayAnim(ped, emote.facial.dict, emote.facial.clip, 2.0, 2.0, -1, 32, 0.0, false, false, false)
+      PlayFacialAnim(ped, emote.facial.clip, emote.facial.dict)
     end
     for i, clip in ipairs(emote.clips) do
       if not playClip(ped, emote, clip) then break end

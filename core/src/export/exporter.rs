@@ -140,6 +140,21 @@ mod tests {
     }
 
     #[test]
+    fn anim_flag_uses_corrected_values() {
+        // Codex レビューで判明した修正点の回帰防止:
+        let lua = crate::export::lua_templates::PLAYER_LUA;
+        // walkable は UPPERBODY|SECONDARY を基本にする。
+        assert!(lua.contains("f | 16 | 32"), "walkable should base on upperbody|secondary");
+        // 誤った既定 51 を撤廃済み。
+        assert!(!lua.contains("f = 51"), "spurious 51 default must be removed");
+        // AF_TAG_SYNC_OUT は 32768（64 ではない）。
+        assert!(lua.contains("AF_TAG_SYNC_OUT' then f = f | 32768"));
+        assert!(!lua.contains("AF_TAG_SYNC_OUT' then f = f | 64"));
+        // facial は専用ネイティブで再生。
+        assert!(lua.contains("PlayFacialAnim(ped, emote.facial.clip, emote.facial.dict)"));
+    }
+
+    #[test]
     fn rejects_empty_and_bad_names() {
         let tmp = tempfile::tempdir().unwrap();
         assert!(matches!(export(&[], tmp.path(), "x"), Err(ExportError::Empty)));

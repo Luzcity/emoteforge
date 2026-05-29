@@ -88,13 +88,30 @@ pub fn set_codex_model(model: Option<String>, state: tauri::State<'_, AppState>)
 }
 
 /// emote 群をスタンドアロン FiveM リソースとしてエクスポートする。
+/// エクスポート前に全 emote を検証し、1 つでも無効なら中止する（無効リソースの生成防止）。
 #[tauri::command]
 pub fn export_emotes(
     specs: Vec<EmoteSpec>,
     out_dir: String,
     resource_name: String,
+    state: tauri::State<'_, AppState>,
 ) -> Result<ResourceManifest, String> {
-    export(&specs, Path::new(&out_dir), &resource_name).map_err(|e| e.to_string())
+    // 各 emote を検証＆正規化。無効があればまとめて報告して中止。
+    let mut normalized = Vec::with_capacity(specs.len());
+    let mut errors = Vec::new();
+    for spec in &specs {
+        match validate(spec, &state.catalog) {
+            Ok(n) => normalized.push(n),
+            Err(report) => {
+                let msgs: Vec<String> = report.issues.iter().map(|i| format!("{}: {}", i.field, i.message)).collect();
+                errors.push(format!("「{}」: {}", spec.display_name, msgs.join("; ")));
+            }
+        }
+    }
+    if !errors.is_empty() {
+        return Err(format!("無効な emote があるためエクスポートを中止しました:\n{}", errors.join("\n")));
+    }
+    export(&normalized, Path::new(&out_dir), &resource_name).map_err(|e| e.to_string())
 }
 
 /// Preview Bridge リソースを FiveM の resources ディレクトリへ書き出す。

@@ -1,7 +1,10 @@
 import type { ClipRef, EmoteSpec } from "../types/emote";
-import type { ValidationIssue } from "../lib/api";
+import { defaultClip } from "../types/emote";
+import type { ValidationIssue, CatalogEntry } from "../lib/api";
 import ClipList from "./ClipList";
 import FlagControls from "./FlagControls";
+import CatalogSearch from "./CatalogSearch";
+import PropFacialControls from "./PropFacialControls";
 
 interface Props {
   spec: EmoteSpec;
@@ -15,6 +18,8 @@ interface Props {
 export default function EmoteEditor({ spec, issues, onChange, onPreview, onStop, previewing }: Props) {
   const patch = (p: Partial<EmoteSpec>) => onChange({ ...spec, ...p });
   const setClips = (clips: ClipRef[]) => patch({ clips });
+  const addCatalogClip = (e: CatalogEntry) => setClips([...spec.clips, defaultClip(e.dict, e.clip)]);
+  const addEmptyClip = () => setClips([...spec.clips, defaultClip("", "")]);
 
   return (
     <div className="space-y-4">
@@ -42,8 +47,21 @@ export default function EmoteEditor({ spec, issues, onChange, onPreview, onStop,
       <FlagControls spec={spec} onChange={patch} />
 
       <div>
-        <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-2">クリップ列</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs uppercase tracking-wide text-gray-500">クリップ列</h3>
+          <button className="text-xs px-2 py-0.5 rounded bg-surface" onClick={addEmptyClip}>
+            ＋ 空のクリップ
+          </button>
+        </div>
         <ClipList clips={spec.clips} onChange={setClips} />
+        <div className="mt-2">
+          <CatalogSearch onAdd={addCatalogClip} />
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-2">プロップ / 表情</h3>
+        <PropFacialControls spec={spec} onChange={patch} />
       </div>
 
       {issues.length > 0 && (

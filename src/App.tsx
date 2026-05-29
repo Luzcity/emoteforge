@@ -54,6 +54,11 @@ export default function App() {
     try {
       const result = await api.validateEmote(spec);
       setIssues(result.issues);
+      // 検証で正規化された spec（name サニタイズ・数値クランプ等）を UI へ反映。
+      // 問題が無い場合のみ反映し、編集中フィールドの上書き衝突を避ける。
+      if (result.issues.length === 0) {
+        updateActive(result.spec);
+      }
     } catch {
       /* 検証は致命的でないため握り潰さずステータスのみ */
     }

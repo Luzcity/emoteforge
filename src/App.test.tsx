@@ -7,6 +7,7 @@ vi.mock("./lib/api", () => ({
   previewEmote: vi.fn(),
   stopPreview: vi.fn(),
   exportEmotes: vi.fn(),
+  searchCatalog: vi.fn().mockResolvedValue([]),
 }));
 vi.mock("./lib/dialog", () => ({ pickDirectory: vi.fn() }));
 
