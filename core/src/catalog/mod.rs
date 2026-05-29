@@ -25,17 +25,12 @@ pub enum CatalogError {
 }
 
 impl Catalog {
-    /// curated catalog.json を読み込む。
+    /// curated catalog.json をファイルから読み込む。バイト列版に委譲する。
     pub fn load(catalog_path: &Path) -> Result<Self, CatalogError> {
-        let text = std::fs::read_to_string(catalog_path)?;
-        let file: CatalogFile = serde_json::from_str(&text)?;
-        Ok(Catalog {
-            entries: file.entries,
-            dump_index: None,
-        })
+        Self::load_bytes(&std::fs::read(catalog_path)?)
     }
 
-    /// コンパイル時埋め込みバイト列から curated catalog を読み込む。
+    /// curated catalog をバイト列から読み込む（埋め込み・ファイル共通の単一経路）。
     pub fn load_bytes(bytes: &[u8]) -> Result<Self, CatalogError> {
         let file: CatalogFile = serde_json::from_slice(bytes)?;
         Ok(Catalog {
@@ -44,32 +39,23 @@ impl Catalog {
         })
     }
 
-    /// 任意で dump_index.json（{dict:[clips]}）を読み込み、存在検証を厳密化する。
-    pub fn with_dump_index(mut self, index_path: &Path) -> Result<Self, CatalogError> {
+    /// 任意で dump_index.json（{dict:[clips]}）をファイルから読み込み、存在検証を厳密化する。
+    /// ファイルが無ければ dump_index なしのまま返す。バイト列版に委譲する。
+    pub fn with_dump_index(self, index_path: &Path) -> Result<Self, CatalogError> {
         if !index_path.exists() {
             return Ok(self);
         }
-        let text = std::fs::read_to_string(index_path)?;
-        let raw: HashMap<String, Vec<String>> = serde_json::from_str(&text)?;
-        let map = raw
-            .into_iter()
-            .map(|(k, v)| (k, v.into_iter().collect::<HashSet<_>>()))
-            .collect();
-        self.dump_index = Some(map);
-        Ok(self)
+        self.with_dump_index_bytes(&std::fs::read(index_path)?)
     }
 
-    /// コンパイル時埋め込みバイト列から dump_index を読み込む。
-    /// 空の JSON オブジェクト（`{}`）の場合は dump_index なしのまま返す。
+    /// dump_index をバイト列から読み込む（埋め込み・ファイル共通の単一経路）。
+    /// 空オブジェクト（`{}`）は dump_index なしと同等に扱い、curated フォールバックさせる。
     pub fn with_dump_index_bytes(mut self, bytes: &[u8]) -> Result<Self, CatalogError> {
-        let raw: HashMap<String, Vec<String>> = serde_json::from_slice(bytes)?;
-        if raw.is_empty() {
+        // JSON 配列を直接 HashSet へデシリアライズし、中間 Vec の再構築を避ける。
+        let map: HashMap<String, HashSet<String>> = serde_json::from_slice(bytes)?;
+        if map.is_empty() {
             return Ok(self);
         }
-        let map = raw
-            .into_iter()
-            .map(|(k, v)| (k, v.into_iter().collect::<HashSet<_>>()))
-            .collect();
         self.dump_index = Some(map);
         Ok(self)
     }

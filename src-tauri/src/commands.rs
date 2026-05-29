@@ -1,5 +1,7 @@
 //! フロントエンドから呼ぶ Tauri コマンド群。core のロジックを薄くラップする。
 
+use std::io::Write;
+use std::net::IpAddr;
 use std::path::Path;
 use std::time::Duration;
 
@@ -12,8 +14,9 @@ use emoteforge_core::phase3::{CommandMotionGenerator, MotionGenerator};
 use emoteforge_core::preview::{self, install_bridge, BridgeConfig};
 use emoteforge_core::validate::{validate, ValidationIssue};
 use serde::Serialize;
+use tempfile::NamedTempFile;
 
-use crate::state::AppState;
+use crate::state::{AppState, SCHEMA_BYTES};
 
 /// 生成/検証の結果。issues が空なら問題なし。
 #[derive(Debug, Serialize)]
@@ -34,7 +37,15 @@ pub fn generate_emote(
         timeout: state.codex_timeout,
         cwd: Some(std::env::temp_dir()),
     };
-    let orch = Orchestrator::new(runner, &state.catalog, state.schema_path.clone());
+    // codex CLI は --output-schema にファイルパスを要求するため、埋め込み schema を
+    // 一意な一時ファイルへ書き出す。generate() の間だけ生存し、関数末尾の drop で自動削除される
+    // （固定名による衝突・セッション中の取りこぼしを避ける）。
+    let mut schema_file =
+        NamedTempFile::new().map_err(|e| format!("failed to create schema temp file: {e}"))?;
+    schema_file
+        .write_all(SCHEMA_BYTES)
+        .map_err(|e| format!("failed to write embedded schema: {e}"))?;
+    let orch = Orchestrator::new(runner, &state.catalog, schema_file.path().to_path_buf());
     let spec = orch.generate(&prompt).map_err(|e| e.to_string())?;
     Ok(validate_and_wrap(spec, &state))
 }
@@ -130,27 +141,23 @@ fn validate_bridge_url(url: &str) -> Result<(), String> {
             .map(|(h, _)| h)
             .unwrap_or(authority)
     };
-    let allowed = matches!(host, "localhost" | "127.0.0.1" | "::1")
-        || host.starts_with("192.168.")
-        || host.starts_with("10.")
-        || is_172_private(host);
+    // localhost リテラルは許可。それ以外は IP としてパースし、loopback または
+    // RFC1918 プライベートアドレスのみ許可する。`10.evil.com` のような文字列プレフィックス
+    // 一致による外部ホスト混入を防ぐため、IP として解釈できないホストは拒否する。
+    if host == "localhost" {
+        return Ok(());
+    }
+    let allowed = match host.parse::<IpAddr>() {
+        Ok(IpAddr::V4(v4)) => v4.is_loopback() || v4.is_private(),
+        Ok(IpAddr::V6(v6)) => v6.is_loopback(),
+        Err(_) => false,
+    };
     if !allowed {
         return Err(format!(
-            "bridge URL host must be localhost or private network, got: {host}"
+            "bridge URL host must be localhost or a private/loopback IP, got: {host}"
         ));
     }
     Ok(())
-}
-
-fn is_172_private(host: &str) -> bool {
-    if let Some(rest) = host.strip_prefix("172.") {
-        if let Some(second) = rest.split('.').next() {
-            if let Ok(n) = second.parse::<u8>() {
-                return (16..=31).contains(&n);
-            }
-        }
-    }
-    false
 }
 
 /// 使用する codex モデルを設定する（None でデフォルト）。
@@ -243,7 +250,7 @@ pub fn import_bvh_ycd_xml(bvh_path: String, out_path: String) -> Result<YcdBuild
 /// 外部 text-to-motion ランナーで生成 → GTA リターゲット → `.ycd.xml` 書き出し。
 /// runner はプロンプトを stdin で受け、MotionClip JSON を stdout に出すコマンド。
 /// セキュリティ: runner_bin はファイル名のみ（PATH 解決）を許可し、絶対/相対パスは拒否。
-/// シェルメタ文字を含む引数も拒否する（コマンド注入防止）。
+/// 引数は Command::new に argv として直接渡る（シェルを介さない）ため、メタ文字検証は不要。
 #[tauri::command]
 pub fn generate_ai_motion_ycd_xml(
     prompt: String,
@@ -252,7 +259,6 @@ pub fn generate_ai_motion_ycd_xml(
     out_path: String,
 ) -> Result<YcdBuildResult, String> {
     validate_runner_bin(&runner_bin)?;
-    validate_runner_args(&runner_args)?;
     reject_path_traversal(&out_path)?;
     let gen = CommandMotionGenerator::new(runner_bin, runner_args);
     let clip = gen.generate(&prompt).map_err(|e| e.to_string())?;
@@ -278,21 +284,6 @@ fn validate_runner_bin(bin: &str) -> Result<(), String> {
     }
     if bin.contains("..") {
         return Err("runner binary must not contain '..'".into());
-    }
-    Ok(())
-}
-
-/// runner_args にシェルメタ文字が含まれていないことを検証する。
-fn validate_runner_args(args: &[String]) -> Result<(), String> {
-    const SHELL_META: &[char] = &[
-        '|', ';', '&', '$', '`', '(', ')', '{', '}', '<', '>', '!', '\n',
-    ];
-    for (i, arg) in args.iter().enumerate() {
-        if arg.contains(SHELL_META) {
-            return Err(format!(
-                "runner_args[{i}] contains disallowed shell meta-characters"
-            ));
-        }
     }
     Ok(())
 }

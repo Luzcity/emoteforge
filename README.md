@@ -38,6 +38,8 @@
 
 ```bash
 # 1) アニメカタログを生成（DurtyFree dump を取得して索引化）
+#    取得元 URL の既定値は catalog/build_catalog.mjs(DUMP_URL) が単一ソース。
+#    別バージョンを使う場合は DUMP_URL env で上書きする（CI は固定 SHA を渡す）。
 curl -sL "https://raw.githubusercontent.com/DurtyFree/gta-v-data-dumps/master/animDictsCompact.json" \
   -o catalog/animDictsCompact.json
 node catalog/build_catalog.mjs        # → catalog/catalog.json, catalog/dump_index.json
