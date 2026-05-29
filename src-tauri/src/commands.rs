@@ -267,7 +267,7 @@ fn validate_runner_bin(bin: &str) -> Result<(), String> {
             "runner binary must be a simple command name (no path separators): {bin}"
         ));
     }
-    if bin.contains('..') {
+    if bin.contains("..") {
         return Err("runner binary must not contain '..'".into());
     }
     Ok(())
