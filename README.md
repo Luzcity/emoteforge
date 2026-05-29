@@ -12,8 +12,8 @@
 | Phase | 内容 | 状態 |
 |---|---|---|
 | 1 | Codex 振付（既存クリップを Lua レベルで合成、`.ycd` 不要） | **実装済み・検証済み**（実 codex E2E / cargo / luac / Vitest） |
-| 2 | 外部モーション取込 → GTA リターゲット → `.ycd` 生成 | 未実装（これから） |
-| 3 | AI text-to-motion 生成 → `.ycd` パイプラインへ | 未実装（これから） |
+| 2 | 外部モーション取込 → GTA リターゲット → `.ycd.xml` 生成 | **実装済み**（BVH/リターゲット/XML はテスト済み。`.ycd` バイナリ化は CodeWalker/Sollumz 必須で**未検証**） |
+| 3 | AI text-to-motion 生成 → `.ycd` パイプラインへ | **実装済み**（生成器抽象＋外部ランナー連携はテスト済み。実モデル/GPU は**未検証**） |
 
 > **検証境界について**: Phase 1 は実 codex 連携・生成 Lua の構文・src-tauri コンパイル・UI まで
 > 実機検証済み。Phase 2/3 は `.ycd` バイナリ生成に Blender(Sollumz)/CodeWalker(.NET, Windows)/GPU を
