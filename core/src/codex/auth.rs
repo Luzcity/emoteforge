@@ -196,8 +196,13 @@ where
 
 /// API キーでログインする。`codex login --with-api-key` に stdin でキーを渡す。
 ///
-/// キーを argv に載せないのは、プロセス一覧等への漏洩を避けるため。
-pub fn login_with_api_key(binary: &str, api_key: &str) -> Result<AuthStatus, CodexError> {
+/// キーを argv に載せないのは、プロセス一覧等への漏洩を避けるため。codex がハングしても
+/// 無期限ブロックしないよう `timeout` 付きで待機し、超過時は子プロセスを kill する。
+pub fn login_with_api_key(
+    binary: &str,
+    api_key: &str,
+    timeout: Duration,
+) -> Result<AuthStatus, CodexError> {
     let mut child = Command::new(binary)
         .arg("login")
         .arg("--with-api-key")
@@ -208,21 +213,41 @@ pub fn login_with_api_key(binary: &str, api_key: &str) -> Result<AuthStatus, Cod
         .map_err(CodexError::Spawn)?;
 
     {
+        // キー＋改行を一度に書く。drop(stdin) で EOF を送る。
+        // BrokenPipe（codex が既に終了）は致命的でないので無視し、後段の exit code で判定する。
         let mut stdin = child.stdin.take().expect("piped stdin");
-        if let Err(e) = stdin.write_all(api_key.trim().as_bytes()) {
+        let mut payload = api_key.trim().as_bytes().to_vec();
+        payload.push(b'\n');
+        if let Err(e) = stdin.write_all(&payload) {
             if e.kind() != std::io::ErrorKind::BrokenPipe {
                 return Err(CodexError::Io(e));
             }
         }
-        let _ = stdin.write_all(b"\n");
-        // drop(stdin) で EOF を送る。
     }
 
-    let output = child.wait_with_output().map_err(CodexError::Io)?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
+    // タイムアウト付き待機。`--with-api-key` の出力は小さくパイプを詰まらせないため、
+    // 終了後にまとめて stderr を読む。
+    let start = Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait().map_err(CodexError::Io)? {
+            break status;
+        }
+        if start.elapsed() > timeout {
+            // タイムアウト確定。kill/wait はベストエフォート（失敗しても返す結果は変わらない）。
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(CodexError::Timeout(timeout));
+        }
+        thread::sleep(Duration::from_millis(100));
+    };
+
+    if !status.success() {
+        let mut stderr = String::new();
+        if let Some(mut e) = child.stderr.take() {
+            let _ = e.read_to_string(&mut stderr);
+        }
         return Err(CodexError::NonZero {
-            code: output.status.code().unwrap_or(-1),
+            code: status.code().unwrap_or(-1),
             stderr: stderr.trim().to_string(),
         });
     }
@@ -279,6 +304,7 @@ where
             break Ok(status);
         }
         if start.elapsed() > timeout {
+            // タイムアウト確定。kill/wait はベストエフォート（失敗しても返す結果は変わらない）。
             let _ = child.kill();
             let _ = child.wait();
             break Err(CodexError::Timeout(timeout));
@@ -287,6 +313,8 @@ where
     };
 
     // 子が終了/kill されればパイプが閉じてリーダーは自然終了する。回収する。
+    // リーダーは行を読んで callback を呼ぶだけで、join 失敗（スレッド panic）から復帰する
+    // 必要はないため無視する。
     for r in readers {
         let _ = r.join();
     }

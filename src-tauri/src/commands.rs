@@ -199,7 +199,8 @@ pub fn codex_login(
             if key.trim().is_empty() {
                 return Err("API キーが空です".to_string());
             }
-            auth::login_with_api_key(&bin, &key).map_err(|e| e.to_string())
+            // API キー認証はネットワーク往復のみで即時に終わるはず。ハング対策に短めの上限。
+            auth::login_with_api_key(&bin, &key, Duration::from_secs(60)).map_err(|e| e.to_string())
         }
         "browser" | "device" => {
             let opened = Arc::new(AtomicBool::new(false));
@@ -209,7 +210,11 @@ pub fn codex_login(
                         auth::open_in_browser(url);
                     }
                 }
-                let _ = app.emit("codex-login-prompt", &prompt);
+                // emit 失敗（リスナー不在・シリアライズ失敗等）は致命的でないが、UI が
+                // フォールバック URL/コードを受け取れなくなるため診断用にログを残す。
+                if let Err(e) = app.emit("codex-login-prompt", &prompt) {
+                    eprintln!("[EmoteForge] codex-login-prompt の emit に失敗: {e}");
+                }
             };
             if method == "device" {
                 auth::login_device(&bin, timeout, on_prompt).map_err(|e| e.to_string())

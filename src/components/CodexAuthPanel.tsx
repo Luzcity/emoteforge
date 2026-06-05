@@ -38,13 +38,23 @@ export default function CodexAuthPanel({ onError, onStatus }: Props) {
   // （ブラウザが自動で開かない場合の手動フォールバック表示のため）。
   useEffect(() => {
     void refresh();
+    // 購読登録は非同期。Promise 解決前にアンマウントされても確実に解除できるよう、
+    // cancelled フラグで判定する（解決が後着なら即座に unlisten を呼ぶ）。
+    let cancelled = false;
     let unlisten: (() => void) | undefined;
     void api
       .onCodexLoginPrompt((p) => setPrompt(p))
       .then((u) => {
-        unlisten = u;
+        if (cancelled) {
+          u();
+        } else {
+          unlisten = u;
+        }
       });
-    return () => unlisten?.();
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
