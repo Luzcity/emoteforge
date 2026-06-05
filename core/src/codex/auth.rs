@@ -1,10 +1,9 @@
 //! Codex CLI のアカウント認証（ChatGPT サブスクログイン / API キー / デバイス認証）。
 //!
 //! codex には複数のログイン方式がある:
-//! - `codex login`              … ブラウザ OAuth（ChatGPT サブスク枠）。認証 URL を **stderr** に出す。
-//! - `codex login --device-auth`… デバイスコード認証。URL とワンタイムコードを **stdout** に出す
-//!                                （ANSI 色付き）。ブラウザが自動で開かない環境向けの公式フォールバック。
-//! - `codex login --with-api-key`… **stdin** から API キーを読む。ブラウザ不要。
+//! - `codex login` … ブラウザ OAuth（ChatGPT サブスク枠）。認証 URL を stderr に出す。
+//! - `codex login --device-auth` … デバイスコード認証。URL とワンタイムコードを stdout（ANSI 色付き）に出す。ブラウザが自動で開かない環境向けの公式フォールバック。
+//! - `codex login --with-api-key` … stdin から API キーを読む。ブラウザ不要。
 //!
 //! 状態確認は `codex login status`、解除は `codex logout`。
 //!
@@ -108,7 +107,7 @@ pub fn find_login_url(line: &str) -> Option<String> {
     line.split_whitespace()
         .find_map(|tok| tok.find("https://").map(|i| &tok[i..]))
         .map(|url| {
-            url.trim_end_matches(|c: char| matches!(c, '.' | ',' | ')' | ']' | '"' | '\''))
+            url.trim_end_matches(['.', ',', ')', ']', '"', '\''])
                 .to_string()
         })
 }

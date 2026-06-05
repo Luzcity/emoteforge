@@ -9,7 +9,6 @@ use std::time::Duration;
 
 use emoteforge_core::catalog::CatalogEntry;
 use emoteforge_core::codex::auth::{self, AuthStatus, LoginPrompt};
-use tauri::{AppHandle, Emitter};
 use emoteforge_core::codex::{CliCodexRunner, Orchestrator};
 use emoteforge_core::export::{export, ResourceManifest};
 use emoteforge_core::model::EmoteSpec;
@@ -18,6 +17,7 @@ use emoteforge_core::phase3::{CommandMotionGenerator, MotionGenerator};
 use emoteforge_core::preview::{self, install_bridge, BridgeConfig};
 use emoteforge_core::validate::{validate, ValidationIssue};
 use serde::Serialize;
+use tauri::{AppHandle, Emitter};
 use tempfile::NamedTempFile;
 
 use crate::state::{AppState, SCHEMA_BYTES};
