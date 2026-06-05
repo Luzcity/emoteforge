@@ -6,6 +6,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use emoteforge_core::catalog::CatalogEntry;
+use emoteforge_core::codex::auth::{self, AuthStatus};
 use emoteforge_core::codex::{CliCodexRunner, Orchestrator};
 use emoteforge_core::export::{export, ResourceManifest};
 use emoteforge_core::model::EmoteSpec;
@@ -164,6 +165,25 @@ fn validate_bridge_url(url: &str) -> Result<(), String> {
 #[tauri::command]
 pub fn set_codex_model(model: Option<String>, state: tauri::State<'_, AppState>) {
     *state.model.lock().unwrap() = model;
+}
+
+/// codex のログイン状態（ChatGPT サブスク枠か API キーか）を取得する。
+#[tauri::command]
+pub fn codex_login_status(state: tauri::State<'_, AppState>) -> Result<AuthStatus, String> {
+    auth::login_status(&state.codex_bin).map_err(|e| e.to_string())
+}
+
+/// codex の ChatGPT サブスクログイン（ブラウザ OAuth）を開始する。
+/// ブラウザでの操作完了までブロックし、完了後に最新状態を返す。
+#[tauri::command]
+pub fn codex_login(state: tauri::State<'_, AppState>) -> Result<AuthStatus, String> {
+    auth::login(&state.codex_bin, Duration::from_secs(300)).map_err(|e| e.to_string())
+}
+
+/// codex の保存済み認証情報を削除する。
+#[tauri::command]
+pub fn codex_logout(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    auth::logout(&state.codex_bin).map_err(|e| e.to_string())
 }
 
 /// emote 群をスタンドアロン FiveM リソースとしてエクスポートする。

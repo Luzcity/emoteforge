@@ -8,6 +8,7 @@ import EmoteEditor from "./components/EmoteEditor";
 import EmoteLibrary from "./components/EmoteLibrary";
 import ExportDialog from "./components/ExportDialog";
 import SettingsPanel from "./components/SettingsPanel";
+import CodexAuthPanel from "./components/CodexAuthPanel";
 import MotionPanel from "./components/MotionPanel";
 
 export default function App() {
@@ -192,6 +193,7 @@ export default function App() {
 
         <aside className="overflow-auto space-y-4">
           <ExportDialog emoteCount={emotes.length} onExport={handleExport} exporting={exporting} />
+          <CodexAuthPanel onError={notifyError} onStatus={notifyStatus} />
           <SettingsPanel onError={notifyError} onStatus={notifyStatus} />
           <MotionPanel onError={notifyError} onStatus={notifyStatus} />
         </aside>

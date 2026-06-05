@@ -56,6 +56,19 @@ export const setBridgeUrl = (url: string) => invoke<void>("set_bridge_url", { ur
 
 export const setCodexModel = (model: string | null) => invoke<void>("set_codex_model", { model });
 
+export interface CodexAuthStatus {
+  loggedIn: boolean;
+  /** "ChatGPT"=サブスク枠 / "API key"=APIキー / null=判別不能。 */
+  method: string | null;
+  detail: string;
+}
+
+export const codexLoginStatus = () => invoke<CodexAuthStatus>("codex_login_status");
+
+export const codexLogin = () => invoke<CodexAuthStatus>("codex_login");
+
+export const codexLogout = () => invoke<void>("codex_logout");
+
 export const exportEmotes = (specs: EmoteSpec[], outDir: string, resourceName: string) =>
   invoke<ResourceManifest>("export_emotes", { specs, outDir, resourceName });
 
