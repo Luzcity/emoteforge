@@ -1,6 +1,7 @@
 // Tauri コマンドの型付きラッパ。コマンド名は src-tauri/src/commands.rs と一致させること。
 
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { EmoteSpec } from "../types/emote";
 
 export interface CatalogEntry {
@@ -63,9 +64,23 @@ export interface CodexAuthStatus {
   detail: string;
 }
 
+/** ログイン方式。"browser"=ブラウザOAuth / "device"=デバイスコード / "apiKey"=APIキー。 */
+export type CodexLoginMethod = "browser" | "device" | "apiKey";
+
+/** ログイン進行中に提示する情報（URL と、デバイス認証時のワンタイムコード）。 */
+export interface CodexLoginPrompt {
+  url: string | null;
+  code: string | null;
+}
+
 export const codexLoginStatus = () => invoke<CodexAuthStatus>("codex_login_status");
 
-export const codexLogin = () => invoke<CodexAuthStatus>("codex_login");
+export const codexLogin = (method: CodexLoginMethod, apiKey?: string) =>
+  invoke<CodexAuthStatus>("codex_login", { method, apiKey: apiKey ?? null });
+
+/** ログイン進行中に backend が emit する URL/コードを購読する。戻り値で購読解除。 */
+export const onCodexLoginPrompt = (cb: (p: CodexLoginPrompt) => void): Promise<UnlistenFn> =>
+  listen<CodexLoginPrompt>("codex-login-prompt", (e) => cb(e.payload));
 
 export const codexLogout = () => invoke<void>("codex_logout");
 
