@@ -3,10 +3,12 @@
 use std::io::Write;
 use std::net::IpAddr;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use emoteforge_core::catalog::CatalogEntry;
-use emoteforge_core::codex::auth::{self, AuthStatus};
+use emoteforge_core::codex::auth::{self, AuthStatus, LoginPrompt};
 use emoteforge_core::codex::{CliCodexRunner, Orchestrator};
 use emoteforge_core::export::{export, ResourceManifest};
 use emoteforge_core::model::EmoteSpec;
@@ -15,6 +17,7 @@ use emoteforge_core::phase3::{CommandMotionGenerator, MotionGenerator};
 use emoteforge_core::preview::{self, install_bridge, BridgeConfig};
 use emoteforge_core::validate::{validate, ValidationIssue};
 use serde::Serialize;
+use tauri::{AppHandle, Emitter};
 use tempfile::NamedTempFile;
 
 use crate::state::{AppState, SCHEMA_BYTES};
@@ -173,11 +176,54 @@ pub fn codex_login_status(state: tauri::State<'_, AppState>) -> Result<AuthStatu
     auth::login_status(&state.codex_bin).map_err(|e| e.to_string())
 }
 
-/// codex の ChatGPT サブスクログイン（ブラウザ OAuth）を開始する。
-/// ブラウザでの操作完了までブロックし、完了後に最新状態を返す。
+/// codex のログインを開始する。`method` で方式を選ぶ:
+/// - `"browser"` … ブラウザ OAuth（ChatGPT サブスク枠）
+/// - `"device"`  … デバイスコード認証（ブラウザが自動で開かない環境向け）
+/// - `"apiKey"`  … API キー（`api_key` 必須）
+///
+/// browser/device はブラウザ操作の完了までブロックする。進行中、認証 URL やワンタイム
+/// コードを `codex-login-prompt` イベントでフロントへ送り（手動フォールバック表示用）、
+/// 同時にこちらでブラウザを開く（重複起動を避けるため URL は最初の一度だけ開く）。
 #[tauri::command]
-pub fn codex_login(state: tauri::State<'_, AppState>) -> Result<AuthStatus, String> {
-    auth::login(&state.codex_bin, Duration::from_secs(300)).map_err(|e| e.to_string())
+pub fn codex_login(
+    app: AppHandle,
+    method: String,
+    api_key: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<AuthStatus, String> {
+    let bin = state.codex_bin.clone();
+    let timeout = Duration::from_secs(300);
+    match method.as_str() {
+        "apiKey" => {
+            let key = api_key.ok_or("API キーが指定されていません")?;
+            if key.trim().is_empty() {
+                return Err("API キーが空です".to_string());
+            }
+            // API キー認証はネットワーク往復のみで即時に終わるはず。ハング対策に短めの上限。
+            auth::login_with_api_key(&bin, &key, Duration::from_secs(60)).map_err(|e| e.to_string())
+        }
+        "browser" | "device" => {
+            let opened = Arc::new(AtomicBool::new(false));
+            let on_prompt = move |prompt: LoginPrompt| {
+                if let Some(url) = &prompt.url {
+                    if !opened.swap(true, Ordering::SeqCst) {
+                        auth::open_in_browser(url);
+                    }
+                }
+                // emit 失敗（リスナー不在・シリアライズ失敗等）は致命的でないが、UI が
+                // フォールバック URL/コードを受け取れなくなるため診断用にログを残す。
+                if let Err(e) = app.emit("codex-login-prompt", &prompt) {
+                    eprintln!("[EmoteForge] codex-login-prompt の emit に失敗: {e}");
+                }
+            };
+            if method == "device" {
+                auth::login_device(&bin, timeout, on_prompt).map_err(|e| e.to_string())
+            } else {
+                auth::login_browser(&bin, timeout, on_prompt).map_err(|e| e.to_string())
+            }
+        }
+        other => Err(format!("未知のログイン方式: {other}")),
+    }
 }
 
 /// codex の保存済み認証情報を削除する。

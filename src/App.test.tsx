@@ -10,6 +10,7 @@ vi.mock("./lib/api", () => ({
   searchCatalog: vi.fn().mockResolvedValue([]),
   codexLoginStatus: vi.fn().mockResolvedValue({ loggedIn: false, method: null, detail: "" }),
   codexLogin: vi.fn(),
+  onCodexLoginPrompt: vi.fn().mockResolvedValue(() => {}),
   codexLogout: vi.fn(),
 }));
 vi.mock("./lib/dialog", () => ({ pickDirectory: vi.fn() }));
